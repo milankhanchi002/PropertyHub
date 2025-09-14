@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
+// Make sure your base URL and port are correct
 const API_BASE_URL = "http://localhost:8080/api/properties";
 
 export default function PropertyList() {
@@ -52,6 +53,7 @@ export default function PropertyList() {
     <div className="container mx-auto p-4 max-w-4xl">
       <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Available Properties</h2>
 
+
       <div className="flex justify-center items-center mb-8 space-x-2">
         <input
           className="border-2 border-gray-300 rounded-full px-4 py-2 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
@@ -85,6 +87,7 @@ export default function PropertyList() {
               <Link to={`/property/${p.id}`} className="block">
                 <div className="p-5">
                   <h3 className="text-xl font-semibold text-gray-900 mb-1">{p.title}</h3>
+                  {/* This line will now work correctly */}
                   <p className="text-gray-600 font-medium mb-3">{p.address}</p>
                   <p className="text-sm text-gray-500 mb-2">
                     <span className="font-semibold">{p.city}</span> | <span className="uppercase">{p.type}</span>

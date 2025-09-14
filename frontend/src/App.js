@@ -6,6 +6,8 @@ import PropertyDetail from './components/PropertyDetail';
 import AdminPanel from './components/AdminPanel';
 import AuthForm from './components/AuthForm';
 
+import './style.css';
+
 function App() {
   let user = null;
   try {
@@ -24,50 +26,47 @@ function App() {
   }
 
   return (
-    <div className="container">
-      {/* Navigation */}
-      <nav style={{ marginBottom: 20 }}>
-        <Link to="/">Home</Link>
+    <div className="app-container">
+      {/* Navbar */}
+      <header className="navbar">
 
-        {user && (
-          <>
-            {" | "}
-            <Link to="/post">Post Property</Link>
-          </>
-        )}
+          <div className="logo-text">PropertyHub</div>
 
-        {user?.role === "ADMIN" && (
-          <>
-            {" | "}
-            <Link to="/admin">Admin</Link>
-          </>
-        )}
+        <nav>
+          <Link to="/">Home</Link>
+          {user && <Link to="/post">Post Property</Link>}
+          {user?.role === "ADMIN" && <Link to="/admin">Admin</Link>}
+          {!user && <Link to="/auth">Login</Link>}
+          {user && <button className="logout-btn" onClick={logout}>Logout</button>}
+        </nav>
+      </header>
 
-        {!user && (
-          <>
-            {" | "}
-            <Link to="/auth">Auth</Link>
-          </>
-        )}
+      {/* Hero + Properties Section */}
+      <section className="hero-properties">
+        <div className="hero-text">
+          <h1>Find Your Perfect Home</h1>
+        </div>
 
-        {user && (
-          <button onClick={logout} style={{ marginLeft: 10 }}>
-            Logout
-          </button>
-        )}
-      </nav>
+        <div className="properties-container">
+          <PropertyList />
+        </div>
+      </section>
 
-      {/* Routes */}
-      <Routes>
-        <Route path="/" element={<PropertyList />} />
-        <Route path="/post" element={user ? <PropertyForm /> : <AuthForm />} />
-        <Route path="/property/:id" element={<PropertyDetail />} />
-        <Route
-          path="/admin"
-          element={user?.role === "ADMIN" ? <AdminPanel /> : <PropertyList />}
-        />
-        <Route path="/auth" element={<AuthForm />} />
-      </Routes>
+      {/* Routes for other pages */}
+      <main className="content">
+        <Routes>
+          <Route path="/post" element={user ? <PropertyForm /> : <AuthForm />} />
+          <Route path="/property/:id" element={<PropertyDetail />} />
+          <Route path="/admin" element={user?.role === "ADMIN" ? <AdminPanel /> : <PropertyList />} />
+          <Route path="/auth" element={<AuthForm />} />
+
+        </Routes>
+      </main>
+
+      {/* Footer */}
+      <footer className="footer">
+        <p>©️ 2025 PropertyHub</p>
+      </footer>
     </div>
   );
 }

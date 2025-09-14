@@ -20,22 +20,24 @@ public class PropertyService {
 
     // Get properties by city as DTOs
     public List<PropertyDTO> getPropertiesByCity(String city) {
-        System.out.println("Received city in service: '" + city + "'");  // Debug log
+        System.out.println("Received city in service: '" + city + "'");
         if (city != null) {
             city = city.trim();
-        }  // Important: Remove leading/trailing spaces
+        }
         List<Property> properties = propertyRepository.findByCityWithOwner(city);
-        System.out.println("Found properties: " + properties.size());  // Debug log
+        System.out.println("Found properties: " + properties.size());
 
-
+        // --- THIS IS THE CORRECTED PART ---
+        // The constructor now includes p.getAddress() and converts price/type to the correct format.
         return properties.stream().map(p -> new PropertyDTO(
                 p.getId(),
                 p.getTitle(),
                 p.getDescription(),
+                p.getAddress(), // 1. Added the address
                 p.getCity(),
                 p.isAvailable(),
-                p.getPrice(),
-                p.getType(),
+                p.getPrice().doubleValue(), // 2. Converted BigDecimal to double
+                p.getType().name(),         // 3. Converted Enum to String
                 p.getOwner() != null ? p.getOwner().getName() : null,
                 p.getOwner() != null ? p.getOwner().getEmail() : null
         )).collect(Collectors.toList());
@@ -45,7 +47,7 @@ public class PropertyService {
     public List<Property> search(String city, PropertyType type, BigDecimal min, BigDecimal max) {
         return propertyRepository.findAll().stream()
                 .filter(p -> (city == null || p.getCity().equalsIgnoreCase(city)))
-                .filter(p -> (type == null || p.getType().equals(type.name())))
+                .filter(p -> (type == null || p.getType().equals(type))) // Simplified enum comparison
                 .filter(p -> (min == null || p.getPrice().compareTo(min) >= 0))
                 .filter(p -> (max == null || p.getPrice().compareTo(max) <= 0))
                 .collect(Collectors.toList());
@@ -63,5 +65,3 @@ public class PropertyService {
         propertyRepository.deleteById(id);
     }
 }
-
-// hello

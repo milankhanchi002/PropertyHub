@@ -8,21 +8,23 @@ public class PropertyDTO {
     private Long id;
     private String title;
     private String description;
+    private String address; // <-- FIELD ADDED HERE
     private String city;
     private boolean available;
     private double price;
     private String type;
-    private String ownerName; // just the owner's name
-    private String ownerEmail; // optional, if you need email
+    private String ownerName;
+    private String ownerEmail;
 
     // Constructors
     public PropertyDTO() {}
 
-    public PropertyDTO(Long id, String title, String description, String city, boolean available,
+    public PropertyDTO(Long id, String title, String description, String address, String city, boolean available,
                        double price, String type, String ownerName, String ownerEmail) {
         this.id = id;
         this.title = title;
         this.description = description;
+        this.address = address; // <-- ADDED TO CONSTRUCTOR
         this.city = city;
         this.available = available;
         this.price = price;
@@ -31,9 +33,7 @@ public class PropertyDTO {
         this.ownerEmail = ownerEmail;
     }
 
-    public PropertyDTO(Long id, String title, String description, String city, boolean available, BigDecimal price, PropertyType type, String ownerName, String ownerEmail) {
-
-    }
+    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -58,6 +58,16 @@ public class PropertyDTO {
     public void setDescription(String description) {
         this.description = description;
     }
+
+    // --- GETTER AND SETTER FOR ADDRESS ---
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+    // ------------------------------------
 
     public String getCity() {
         return city;
@@ -106,6 +116,4 @@ public class PropertyDTO {
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
     }
-// Getters & Setters
-    // ...
 }
