@@ -5,7 +5,7 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
-// ================= Helper =================
+// ================= Helper (No changes needed) =================
 async function handleResponse(res) {
   const text = await res.text();
   let data;
@@ -23,7 +23,7 @@ async function handleResponse(res) {
   return data;
 }
 
-// ================= Auth APIs =================
+// ================= Auth APIs (No changes needed) =================
 export async function registerUser(data) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
@@ -42,7 +42,7 @@ export async function loginUser(data) {
   return handleResponse(res);
 }
 
-// ================= Admin APIs =================
+// ================= Admin APIs (No changes needed) =================
 export async function getAdminProperties() {
   const res = await fetch(`${BASE_URL}/admin/properties`, {
     headers: { Authorization: `Bearer ${getToken()}` },
@@ -58,25 +58,38 @@ export async function toggleProperty(id) {
   return handleResponse(res);
 }
 
-// ================= Property APIs =================
+// ================= Property APIs (Updates below) =================
 export async function getProperties(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  const url = query ? `${BASE_URL}/properties?${query}` : `${BASE_URL}/properties`;
+  // Clear any empty parameters to avoid things like 'city=' in the URL
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v != null && v !== '')
+  );
+
+  const query = new URLSearchParams(cleanParams).toString();
+
+  // ✅ CHANGED: Pointing to the correct '/search' endpoint for filtering.
+  const url = query ? `${BASE_URL}/properties/search?${query}` : `${BASE_URL}/properties/search`;
 
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${getToken()}`  // ⚡ Add Authorization header
+      Authorization: `Bearer ${getToken()}`
     }
   });
 
   return handleResponse(res);
 }
 
-
 export async function getProperty(id) {
-  const res = await fetch(`${BASE_URL}/properties/${id}`);
+  const res = await fetch(`${BASE_URL}/properties/${id}`, {
+    // ✅ ADDED: Authorization header for consistency and security.
+    headers: {
+      Authorization: `Bearer ${getToken()}`
+    }
+  });
   return handleResponse(res);
 }
+
+// --- No changes to the functions below ---
 
 export async function createProperty(data, ownerId) {
   const res = await fetch(`${BASE_URL}/properties?ownerId=${ownerId}`, {
@@ -98,7 +111,6 @@ export async function deleteProperty(id) {
   return handleResponse(res);
 }
 
-
 export async function updateProperty(id, data) {
   const res = await fetch(`${BASE_URL}/properties/${id}`, {
     method: "PUT",
@@ -111,7 +123,7 @@ export async function updateProperty(id, data) {
   return handleResponse(res);
 }
 
-// ================= Visit APIs =================
+// ================= Visit APIs (No changes needed) =================
 export async function bookVisit(propertyId, data) {
   const res = await fetch(`${BASE_URL}/visits/book?propertyId=${propertyId}`, {
     method: "POST",
@@ -124,7 +136,7 @@ export async function bookVisit(propertyId, data) {
   return handleResponse(res);
 }
 
-// ================= Optional Booking / Payment APIs =================
+// ================= Booking / Payment APIs (No changes needed) =================
 export async function createBooking(userId, propertyId) {
   const res = await fetch(`${BASE_URL}/bookings/leases?userId=${userId}&propertyId=${propertyId}`, {
     method: "POST",

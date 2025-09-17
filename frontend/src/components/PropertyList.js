@@ -1,35 +1,22 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-
-// Make sure your base URL and port are correct
-const API_BASE_URL = "http://localhost:8080/api/properties";
+import * as api from '../api'; // Assuming your api.js is in a parent/sibling folder
 
 export default function PropertyList() {
   const [properties, setProperties] = useState([]);
-  const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    city: "",
+    type: "",
+    minPrice: "",
+    maxPrice: "",
+  });
 
-  const token = localStorage.getItem("token");
-
-  async function fetchProperties(searchCity = "") {
+  async function fetchProperties() {
     setLoading(true);
-
     try {
-      const url = searchCity ? `${API_BASE_URL}?city=${encodeURIComponent(searchCity)}` : API_BASE_URL;
-
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`Status: ${res.status}`);
-      }
-
-      const data = await res.json();
+      // Pass the filters object directly to the API call
+      const data = await api.getProperties(filters);
       setProperties(data);
     } catch (err) {
       console.error(err);
@@ -40,70 +27,131 @@ export default function PropertyList() {
     }
   }
 
-  function handleSearch() {
-    fetchProperties(city);
+  function handleInputChange(e) {
+    const { name, value } = e.target;
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [name]: value,
+    }));
+  }
+
+  function handleSearch(e) {
+    e.preventDefault();
+    fetchProperties();
   }
 
   function handleReset() {
-    setCity("");
+    setFilters({
+      city: "",
+      type: "",
+      minPrice: "",
+      maxPrice: "",
+    });
     setProperties([]);
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Available Properties</h2>
+    // Use a React Fragment as the main container is now in App.js
+    <>
+      <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '2rem' }}>
+        Find Your Next Property
+      </h2>
 
+      {/* Search and Filter Form */}
+      <div className="filter-container">
+        <div className="filter-grid">
+          {/* City Input */}
+          <div className="form-group">
+            <label htmlFor="city">City</label>
+            <input
+              id="city"
+              name="city"
+              type="text"
+              placeholder="e.g., Miami"
+              value={filters.city}
+              onChange={handleInputChange}
+            />
+          </div>
 
-      <div className="flex justify-center items-center mb-8 space-x-2">
-        <input
-          className="border-2 border-gray-300 rounded-full px-4 py-2 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          type="text"
-          placeholder="Search properties by city"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        />
-        <button
-          onClick={handleSearch}
-          className="bg-blue-600 text-white rounded-full px-6 py-2 hover:bg-blue-700 transition-all duration-200"
-        >
-          Search
-        </button>
-        <button
-          onClick={handleReset}
-          className="bg-gray-400 text-white rounded-full px-6 py-2 hover:bg-gray-500 transition-all duration-200"
-        >
-          Reset
-        </button>
+          {/* Property Type Select */}
+          <div className="form-group">
+            <label htmlFor="type">Type</label>
+            <select
+              id="type"
+              name="type"
+              value={filters.type}
+              onChange={handleInputChange}
+            >
+              <option value="">All Types</option>
+              <option value="APARTMENT">Apartment</option>
+              <option value="HOUSE">House</option>
+              <option value="CONDO">Condo</option>
+              <option value="VILLA">Villa</option>
+            </select>
+          </div>
+
+          {/* Min & Max Price Inputs */}
+          <div className="form-group">
+            <label htmlFor="minPrice">Min Price</label>
+            <input
+              id="minPrice"
+              name="minPrice"
+              type="number"
+              placeholder="No Min"
+              value={filters.minPrice}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="maxPrice">Max Price</label>
+            <input
+              id="maxPrice"
+              name="maxPrice"
+              type="number"
+              placeholder="No Max"
+              value={filters.maxPrice}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="filter-actions">
+          <button onClick={handleReset} className="btn btn-secondary">
+            Reset
+          </button>
+          <button onClick={handleSearch} className="btn btn-primary">
+            Search
+          </button>
+        </div>
       </div>
 
+      {/* Property Listing */}
       {loading ? (
-        <div className="text-center p-4">Loading properties...</div>
+        <div style={{ textAlign: 'center', padding: '1rem' }}>Loading properties... ⏳</div>
       ) : properties.length === 0 ? (
-        <p className="text-center text-gray-500">No properties found.</p>
+        <p className="no-properties">No properties found. Try adjusting your filters.</p>
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ul className="property-grid">
           {properties.map((p) => (
-            <li key={p.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <Link to={`/property/${p.id}`} className="block">
-                <div className="p-5">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-1">{p.title}</h3>
-                  {/* This line will now work correctly */}
-                  <p className="text-gray-600 font-medium mb-3">{p.address}</p>
-                  <p className="text-sm text-gray-500 mb-2">
-                    <span className="font-semibold">{p.city}</span> | <span className="uppercase">{p.type}</span>
-                  </p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-blue-600">${p.price}</span>
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${p.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {p.available ? 'Available' : 'Occupied'}
-                    </span>
-                  </div>
+            <li key={p.id} className="property-card">
+              <Link to={`/property/${p.id}`}>
+                <h3>{p.title}</h3>
+                <p className="address">{p.address}</p>
+                <p className="details">
+                  <span>{p.city}</span> | <span>{p.type}</span>
+                </p>
+                <div className="footer">
+                  <span className="price">${p.price.toLocaleString()}</span>
+                  <span className={`status-badge ${p.available ? 'status-available' : 'status-occupied'}`}>
+                    {p.available ? 'Available' : 'Occupied'}
+                  </span>
                 </div>
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </>
   );
 }

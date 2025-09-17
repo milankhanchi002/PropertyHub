@@ -11,7 +11,9 @@ import java.util.List;
 @RequestMapping("/api/admin")
 public class AdminController {
     private final PropertyService propertyService;
-    public AdminController(PropertyService propertyService){this.propertyService = propertyService;}
+    public AdminController(PropertyService propertyService){
+        this.propertyService = propertyService;
+    }
 
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','TENANT','AGENT')")
     @GetMapping("/properties")
