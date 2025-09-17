@@ -18,29 +18,37 @@ public class PropertyService {
     @Autowired
     private PropertyRepository propertyRepository;
 
+    private PropertyDTO toDTO(Property p) {
+        return new PropertyDTO(
+                p.getId(),
+                p.getTitle(),
+                p.getDescription(),
+                p.getAddress(),
+                p.getCity(),
+                p.isAvailable(),
+                p.getPrice().doubleValue(),
+                p.getType().name(),
+                p.getOwner() != null ? p.getOwner().getName() : null,
+                p.getOwner() != null ? p.getOwner().getEmail() : null
+        );
+    }
+
     // Get properties by city as DTOs
     public List<PropertyDTO> getPropertiesByCity(String city) {
         System.out.println("Received city in service: '" + city + "'");
-        if (city != null) {
+        List<Property> properties;
+        if (city != null && !city.trim().isEmpty()) {
             city = city.trim();
+            properties = propertyRepository.findByCityWithOwner(city);
+        } else {
+            // If no city specified, return all properties
+            properties = propertyRepository.findAll();
         }
-        List<Property> properties = propertyRepository.findByCityWithOwner(city);
         System.out.println("Found properties: " + properties.size());
 
         // --- THIS IS THE CORRECTED PART ---
         // The constructor now includes p.getAddress() and converts price/type to the correct format.
-        return properties.stream().map(p -> new PropertyDTO(
-                p.getId(),
-                p.getTitle(),
-                p.getDescription(),
-                p.getAddress(), // 1. Added the address
-                p.getCity(),
-                p.isAvailable(),
-                p.getPrice().doubleValue(), // 2. Converted BigDecimal to double
-                p.getType().name(),         // 3. Converted Enum to String
-                p.getOwner() != null ? p.getOwner().getName() : null,
-                p.getOwner() != null ? p.getOwner().getEmail() : null
-        )).collect(Collectors.toList());
+        return properties.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     // Search properties with filters (BigDecimal properly compared)
@@ -51,6 +59,16 @@ public class PropertyService {
                 .filter(p -> (min == null || p.getPrice().compareTo(min) >= 0))
                 .filter(p -> (max == null || p.getPrice().compareTo(max) <= 0))
                 .collect(Collectors.toList());
+    }
+
+    // Search properties with filters and return as DTOs
+    public List<PropertyDTO> searchAsDTO(String city, PropertyType type, BigDecimal min, BigDecimal max) {
+        List<Property> properties = search(city, type, min, max);
+        return properties.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public Optional<PropertyDTO> findDTOById(Long id) {
+        return propertyRepository.findById(id).map(this::toDTO);
     }
 
     public Optional<Property> findById(Long id) {

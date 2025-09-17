@@ -1,115 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Link } from 'react-router-dom';
 import PropertyList from './components/PropertyList';
 import PropertyForm from './components/PropertyForm';
 import PropertyDetail from './components/PropertyDetail';
 import AdminPanel from './components/AdminPanel';
 import AuthForm from './components/AuthForm';
+import Dashboard from './components/Dashboard';
+import { ToastProvider } from './components/Toast';
 
 import './style.css';
 
-// A reusable component for protected routes
-function ProtectedRoute({ user, requiredRole, children }) {
-  if (!user) {
-    // Redirect to login if not authenticated
-    return <AuthForm />;
-  }
-  if (requiredRole && user.role !== requiredRole) {
-    // Redirect to home if user role doesn't match
-    return <PropertyList />;
-  }
-  return children;
-}
-
 function App() {
-  const [user, setUser] = useState(null);
-  const navigate = useNavigate();
+  let user = null;
+  try {
+    const storedUser = localStorage.getItem('user');
+    user = storedUser ? JSON.parse(storedUser) : null;
+  } catch (err) {
+    console.warn("Invalid user data in localStorage, clearing it.");
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    user = null;
+  }
 
-  // On initial app load, check localStorage for a logged-in user
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (err) {
-      console.warn("Invalid user data in localStorage, clearing it.");
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-    }
-  }, []); // The empty array [] means this effect runs only once
-
-  // A smooth, reactive logout function
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setUser(null); // Update state to trigger re-render
-    navigate('/'); // Navigate to home without a page refresh
-  }
-
-  // This function will be passed to AuthForm to update the app state on login
-  function handleLoginSuccess(loggedInUser) {
-    setUser(loggedInUser);
+    window.location.href = '/';
   }
 
   return (
-    <div className="app-container">
-      {/* Navbar */}
-      <header className="navbar">
-        <Link to="/" className="logo-text">PropertyHub</Link>
-        <nav>
-          <Link to="/">Home</Link>
-          {user && <Link to="/post">Post Property</Link>}
-          {user?.role === "ADMIN" && <Link to="/admin">Admin</Link>}
+    <ToastProvider>
+      <div className="app-container">
+        {/* Navbar */}
+        <header className="navbar">
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <div className="logo-text">PropertyHub</div>
+          </Link>
 
-          {!user ? (
-            <Link to="/auth">Login / Register</Link>
-          ) : (
-            <button className="logout-btn" onClick={logout}>
-              Logout ({user.name})
-            </button>
-          )}
-        </nav>
-      </header>
+          <nav>
+            <Link to="/">🏠 Properties</Link>
+            {user && <Link to="/dashboard">📊 Dashboard</Link>}
+            {(user?.role === "OWNER" || user?.role === "ADMIN") && <Link to="/post">➕ List Property</Link>}
+            {user?.role === "ADMIN" && <Link to="/admin">⚙️ Admin</Link>}
+            {!user ? (
+              <Link to="/auth">🔐 Sign In</Link>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ color: '#4a5568', fontSize: '0.875rem' }}>Welcome, {user.name}</span>
+                <button className="logout-btn" onClick={logout}>Sign Out</button>
+              </div>
+            )}
+          </nav>
+        </header>
 
-      {/* Main content area where routes are rendered */}
-      <main className="content">
+        {/* Routes */}
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<PropertyList />} />
+          <Route path="/" element={
+            <>
+              <section className="hero-properties">
+                <div className="hero-text">
+                  <h1>Find Your Perfect Home</h1>
+                  <p style={{ fontSize: '1.25rem', color: '#4a5568', marginTop: '1rem' }}>
+                    Discover amazing properties in your dream location
+                  </p>
+                </div>
+              </section>
+              <PropertyList />
+            </>
+          } />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/post" element={user ? <PropertyForm /> : <AuthForm />} />
           <Route path="/property/:id" element={<PropertyDetail />} />
-
-          {/* Auth Route */}
-          <Route
-            path="/auth"
-            element={<AuthForm onLoginSuccess={handleLoginSuccess} />}
-          />
-
-          {/* Protected Routes */}
-          <Route
-            path="/post"
-            element={
-              <ProtectedRoute user={user}>
-                <PropertyForm />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute user={user} requiredRole="ADMIN">
-                <AdminPanel />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/admin" element={user?.role === "ADMIN" ? <AdminPanel /> : <AuthForm />} />
+          <Route path="/auth" element={<AuthForm />} />
         </Routes>
-      </main>
 
-      {/* Footer */}
-      <footer className="footer">
-        <p>©️ 2025 PropertyHub, a subsidiary of Gemini Industries. All rights reserved.</p>
-      </footer>
-    </div>
+        {/* Footer */}
+        <footer className="footer">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' }}>
+            <p> 2025 PropertyHub. All rights reserved.</p>
+            <div style={{ display: 'flex', gap: '2rem' }}>
+              <Link to="/" style={{ color: '#4a5568', textDecoration: 'none' }}>Properties</Link>
+              <Link to="/auth" style={{ color: '#4a5568', textDecoration: 'none' }}>Sign In</Link>
+              {user && <Link to="/dashboard" style={{ color: '#4a5568', textDecoration: 'none' }}>Dashboard</Link>}
+            </div>
+          </div>
+        </footer>
+      </div>
+    </ToastProvider>
   );
 }
 

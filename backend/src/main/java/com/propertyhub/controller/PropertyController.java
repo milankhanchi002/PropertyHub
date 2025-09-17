@@ -29,27 +29,27 @@ public class PropertyController {
 
     // ✅ Get properties by city (returns DTOs)
     @GetMapping
-    public ResponseEntity<List<PropertyDTO>> getProperties(@RequestParam String city) {
+    public ResponseEntity<List<PropertyDTO>> getProperties(@RequestParam(required = false) String city) {
         List<PropertyDTO> properties = propertyService.getPropertiesByCity(city);
         return ResponseEntity.ok(properties);
     }
 
     // ✅ Search with optional filters (separate endpoint)
     @GetMapping("/search")
-    public ResponseEntity<List<Property>> search(
+    public ResponseEntity<List<PropertyDTO>> search(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) PropertyType type,
             @RequestParam(required = false) BigDecimal min,
             @RequestParam(required = false) BigDecimal max) {
 
-        List<Property> properties = propertyService.search(city, type, min, max);
+        List<PropertyDTO> properties = propertyService.searchAsDTO(city, type, min, max);
         return ResponseEntity.ok(properties);
     }
 
     // ✅ Get property by ID
     @GetMapping("/{id}")
-    public ResponseEntity<Property> getById(@PathVariable Long id) {
-        return propertyService.findById(id)
+    public ResponseEntity<PropertyDTO> getById(@PathVariable Long id) {
+        return propertyService.findDTOById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

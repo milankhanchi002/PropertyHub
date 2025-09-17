@@ -1,104 +1,140 @@
 import React, { useState } from "react";
-import { bookVisit } from "../api"; // Make sure the path to your api.js is correct
+import { bookVisit } from "../api";
 
-export default function VisitForm({ propertyId }) {
-  // Use a single state object for the form data
-  const [formData, setFormData] = useState({
+export default function VisitForm({ propertyId, onSuccess }) {
+  const [form, setForm] = useState({
     tenantName: "",
     tenantEmail: "",
-    visitDateTime: "",
+    visitDateTime: ""
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // State for handling submission feedback
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
 
-  // A single handler for all input changes
-  const handleChange = (e) => {
+  // Pre-fill user data if available
+  React.useEffect(() => {
+    if (user) {
+      setForm(prev => ({
+        ...prev,
+        tenantName: user.name || "",
+        tenantEmail: user.email || ""
+      }));
+    }
+  }, [user]);
+
+  function handleChange(e) {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
+    setForm(prev => ({ ...prev, [name]: value }));
+  }
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setIsSubmitting(true);
-    setMessage(""); // Clear previous messages
+    setLoading(true);
+    setError("");
 
     try {
-      // The API call now sends the correct data structure
-      await bookVisit(propertyId, formData);
-      setMessage("Visit booked successfully! You will be contacted shortly.");
+      const visitData = {
+        tenantName: form.tenantName,
+        tenantEmail: form.tenantEmail,
+        visitDateTime: form.visitDateTime
+      };
 
-      // Reset the form after successful submission
-      setFormData({
-        tenantName: "",
-        tenantEmail: "",
-        visitDateTime: "",
+      await bookVisit(propertyId, visitData);
+      
+      if (onSuccess) onSuccess();
+      
+      // Reset form
+      setForm({
+        tenantName: user?.name || "",
+        tenantEmail: user?.email || "",
+        visitDateTime: ""
       });
     } catch (err) {
       console.error("Error booking visit:", err);
-      setMessage(`Failed to book visit: ${err.message}`);
+      setError(err.message || "Failed to book visit");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  };
+  }
+
+  // Get minimum date (today)
+  const today = new Date().toISOString().slice(0, 16);
 
   return (
-    <div className="visit-form-container">
-      <h3>Schedule a Viewing</h3>
+    <div>
+      {error && (
+        <div style={{ 
+          background: '#fee2e2', 
+          color: '#991b1b', 
+          padding: '0.75rem', 
+          borderRadius: '0.5rem', 
+          marginBottom: '1.5rem',
+          border: '1px solid #fecaca'
+        }}>
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="tenantName">Full Name:</label>
+          <label className="form-label">Your Name</label>
           <input
             type="text"
-            id="tenantName"
             name="tenantName"
-            value={formData.tenantName}
+            placeholder="Enter your full name"
+            value={form.tenantName}
             onChange={handleChange}
             required
-            placeholder="John Doe"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="tenantEmail">Email Address:</label>
+          <label className="form-label">Your Email</label>
           <input
             type="email"
-            id="tenantEmail"
             name="tenantEmail"
-            value={formData.tenantEmail}
+            placeholder="Enter your email address"
+            value={form.tenantEmail}
             onChange={handleChange}
             required
-            placeholder="you@example.com"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="visitDateTime">Preferred Date and Time:</label>
+          <label className="form-label">Preferred Visit Date & Time</label>
           <input
-            type="datetime-local" // This input captures both date and time
-            id="visitDateTime"
+            type="datetime-local"
             name="visitDateTime"
-            value={formData.visitDateTime}
+            value={form.visitDateTime}
             onChange={handleChange}
+            min={today}
             required
           />
         </div>
 
-        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? "Booking..." : "Request Visit"}
-        </button>
-      </form>
+        {/* Notes removed to align with Visit model */}
 
-      {/* Display success or error messages directly in the UI */}
-      {message && (
-        <p className={`form-message ${message.includes('Failed') ? 'error' : 'success'}`}>
-          {message}
-        </p>
-      )}
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button 
+            type="button" 
+            onClick={onSuccess}
+            className="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="loading"></span>
+                Booking Visit...
+              </>
+            ) : (
+              "📅 Book Visit"
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

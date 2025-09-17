@@ -1,5 +1,6 @@
 package com.propertyhub.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public class Visit {
 
     private String tenantName;
     private String tenantEmail;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime visitDateTime;
     private String status;
 

@@ -1,5 +1,6 @@
 package com.propertyhub.controller;
 
+import com.propertyhub.dto.VisitDTO;
 import com.propertyhub.model.Visit;
 import com.propertyhub.model.Property;
 import com.propertyhub.repository.PropertyRepository;
@@ -21,15 +22,25 @@ public class VisitController {
     }
 
     @PostMapping("/book")
-    public ResponseEntity<Visit> bookVisit(@RequestBody Visit visit, @RequestParam Long propertyId){
+    public ResponseEntity<VisitDTO> bookVisit(@RequestBody Visit visit, @RequestParam Long propertyId){
         Optional<Property> p = propertyRepository.findById(propertyId);
         if(p.isEmpty()) return ResponseEntity.badRequest().build();
         visit.setProperty(p.get());
         visit.setStatus("PENDING");
         Visit saved = visitService.save(visit);
-        return ResponseEntity.ok(saved);
+        // Map to DTO for response
+        VisitDTO dto = new VisitDTO(
+                saved.getId(),
+                saved.getProperty() != null ? saved.getProperty().getId() : null,
+                saved.getProperty() != null ? saved.getProperty().getTitle() : null,
+                saved.getTenantName(),
+                saved.getTenantEmail(),
+                saved.getVisitDateTime(),
+                saved.getStatus()
+        );
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping
-    public List<Visit> all(){ return visitService.findAll(); }
+    public List<VisitDTO> all(){ return visitService.findAllDTO(); }
 }

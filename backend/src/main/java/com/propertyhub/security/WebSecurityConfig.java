@@ -31,12 +31,15 @@ public class WebSecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // Permit all requests to the authentication and properties endpoints.
+                        // Permit all requests to the authentication endpoint.
                         // The OPTIONS method is a preflight request and must be allowed.
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/properties").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("OWNER")
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Public read-only access for property listings and search
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/properties/**").permitAll()
+                        // Admin endpoints remain protected
+                        .requestMatchers("/api/admin/**").hasRole("OWNER")
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

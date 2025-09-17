@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import * as api from '../api'; // Assuming your api.js is in a parent/sibling folder
+import { searchProperties, getProperties } from "../api";
 
 export default function PropertyList() {
   const [properties, setProperties] = useState([]);
@@ -9,35 +9,61 @@ export default function PropertyList() {
     city: "",
     type: "",
     minPrice: "",
-    maxPrice: "",
+    maxPrice: ""
   });
 
-  async function fetchProperties() {
+  function getPropertyImage(p) {
+    const cityKey = (p.city || '').toLowerCase();
+    const typeKey = (p.type || '').toLowerCase();
+    const byType = {
+      house: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1600&auto=format&fit=crop',
+      apartment: 'https://images.unsplash.com/photo-1501183638710-841dd1904471?q=80&w=1600&auto=format&fit=crop',
+      villa: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=1600&auto=format&fit=crop',
+    };
+    const byCity = {
+      'new york': 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=1600&auto=format&fit=crop',
+      'san francisco': 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?q=80&w=1600&auto=format&fit=crop',
+      'los angeles': 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=1600&auto=format&fit=crop',
+      'miami': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1600&auto=format&fit=crop',
+      'seattle': 'https://images.unsplash.com/photo-1520975832066-6b2f54f0febb?q=80&w=1600&auto=format&fit=crop'
+    };
+    return byCity[cityKey] || byType[typeKey] || 'https://images.unsplash.com/photo-1494526585095-c41746248156?q=80&w=1600&auto=format&fit=crop';
+  }
+
+  useEffect(() => {
+    loadProperties();
+  }, []);
+
+  async function loadProperties() {
     setLoading(true);
     try {
-      // Pass the filters object directly to the API call
-      const data = await api.getProperties(filters);
+      const data = await getProperties(); // Load all properties initially
       setProperties(data);
     } catch (err) {
       console.error(err);
-      alert("Failed to load properties: " + err.message);
       setProperties([]);
     } finally {
       setLoading(false);
     }
   }
 
-  function handleInputChange(e) {
-    const { name, value } = e.target;
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      [name]: value,
-    }));
-  }
-
-  function handleSearch(e) {
-    e.preventDefault();
-    fetchProperties();
+  async function handleSearch() {
+    setLoading(true);
+    try {
+      const searchFilters = {};
+      if (filters.city) searchFilters.city = filters.city;
+      if (filters.type) searchFilters.type = filters.type;
+      if (filters.minPrice) searchFilters.min = filters.minPrice;
+      if (filters.maxPrice) searchFilters.max = filters.maxPrice;
+      
+      const data = await searchProperties(searchFilters);
+      setProperties(data);
+    } catch (err) {
+      console.error(err);
+      alert("Search failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleReset() {
@@ -45,113 +71,114 @@ export default function PropertyList() {
       city: "",
       type: "",
       minPrice: "",
-      maxPrice: "",
+      maxPrice: ""
     });
-    setProperties([]);
+    loadProperties();
+  }
+
+  function handleFilterChange(field, value) {
+    setFilters(prev => ({ ...prev, [field]: value }));
   }
 
   return (
-    // Use a React Fragment as the main container is now in App.js
-    <>
-      <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '2rem' }}>
-        Find Your Next Property
-      </h2>
+    <div className="properties-container">
+      <h2 className="text-center mb-6" style={{ fontSize: '2.5rem', fontWeight: '800', color: '#1a202c' }}>Available Properties</h2>
 
-      {/* Search and Filter Form */}
-      <div className="filter-container">
-        <div className="filter-grid">
-          {/* City Input */}
+      {/* Advanced Search Filters */}
+      <div className="search-container">
+        <h3 className="mb-4" style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151' }}>Search & Filter Properties</h3>
+        <div className="search-grid">
           <div className="form-group">
-            <label htmlFor="city">City</label>
+            <label className="form-label">City</label>
             <input
-              id="city"
-              name="city"
               type="text"
-              placeholder="e.g., Miami"
+              placeholder="Enter city name"
               value={filters.city}
-              onChange={handleInputChange}
+              onChange={(e) => handleFilterChange('city', e.target.value)}
             />
           </div>
-
-          {/* Property Type Select */}
           <div className="form-group">
-            <label htmlFor="type">Type</label>
+            <label className="form-label">Property Type</label>
             <select
-              id="type"
-              name="type"
               value={filters.type}
-              onChange={handleInputChange}
+              onChange={(e) => handleFilterChange('type', e.target.value)}
             >
               <option value="">All Types</option>
-              <option value="APARTMENT">Apartment</option>
               <option value="HOUSE">House</option>
-              <option value="CONDO">Condo</option>
+              <option value="APARTMENT">Apartment</option>
               <option value="VILLA">Villa</option>
             </select>
           </div>
-
-          {/* Min & Max Price Inputs */}
           <div className="form-group">
-            <label htmlFor="minPrice">Min Price</label>
+            <label className="form-label">Min Price ($)</label>
             <input
-              id="minPrice"
-              name="minPrice"
               type="number"
-              placeholder="No Min"
+              placeholder="0"
               value={filters.minPrice}
-              onChange={handleInputChange}
+              onChange={(e) => handleFilterChange('minPrice', e.target.value)}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="maxPrice">Max Price</label>
+            <label className="form-label">Max Price ($)</label>
             <input
-              id="maxPrice"
-              name="maxPrice"
               type="number"
-              placeholder="No Max"
+              placeholder="No limit"
               value={filters.maxPrice}
-              onChange={handleInputChange}
+              onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
             />
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="filter-actions">
-          <button onClick={handleReset} className="btn btn-secondary">
-            Reset
+        <div className="flex gap-4 mt-4">
+          <button onClick={handleSearch} disabled={loading}>
+            {loading ? <span className="loading"></span> : null}
+            Search Properties
           </button>
-          <button onClick={handleSearch} className="btn btn-primary">
-            Search
+          <button onClick={handleReset} className="btn-secondary">
+            Reset Filters
           </button>
         </div>
       </div>
 
-      {/* Property Listing */}
+      {/* Property Results */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>Loading properties... ⏳</div>
+        <div className="text-center" style={{ padding: '3rem' }}>
+          <div className="loading" style={{ width: '40px', height: '40px', margin: '0 auto' }}></div>
+          <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading properties...</p>
+        </div>
       ) : properties.length === 0 ? (
-        <p className="no-properties">No properties found. Try adjusting your filters.</p>
+        <div className="text-center" style={{ padding: '3rem' }}>
+          <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>No properties found. Try adjusting your search filters.</p>
+        </div>
       ) : (
-        <ul className="property-grid">
-          {properties.map((p) => (
-            <li key={p.id} className="property-card">
-              <Link to={`/property/${p.id}`}>
-                <h3>{p.title}</h3>
-                <p className="address">{p.address}</p>
-                <p className="details">
-                  <span>{p.city}</span> | <span>{p.type}</span>
-                </p>
-                <div className="footer">
-                  <span className="price">${p.price.toLocaleString()}</span>
-                  <span className={`status-badge ${p.available ? 'status-available' : 'status-occupied'}`}>
-                    {p.available ? 'Available' : 'Occupied'}
-                  </span>
+        <div className="property-grid">
+          {properties.map((property) => (
+            <div key={property.id} className="property-card">
+              <Link to={`/property/${property.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="property-card-image">
+                  <img className="property-card-img" src={getPropertyImage(property)} alt={property.title} loading="lazy" />
+                  <div className="property-card-overlay" />
+                  <div className="property-card-chip">{property.city}</div>
+                  <div className="property-card-price">${property.price?.toLocaleString()}</div>
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#1f2937', marginBottom: '0.35rem' }}>
+                    {property.title}
+                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span className="badge badge-warning">{property.type}</span>
+                    <span className={`badge ${property.available ? 'badge-success' : 'badge-danger'}`}>
+                      {property.available ? 'Available' : 'Occupied'}
+                    </span>
+                  </div>
+                  <p style={{ color: '#6b7280' }}>
+                    {property.address}
+                  </p>
                 </div>
               </Link>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </>
+    </div>
   );
 }
