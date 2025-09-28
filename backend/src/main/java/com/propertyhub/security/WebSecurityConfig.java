@@ -35,10 +35,14 @@ public class WebSecurityConfig {
                         // The OPTIONS method is a preflight request and must be allowed.
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Serve uploaded images publicly
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/uploads/**").permitAll()
                         // Public read-only access for property listings and search
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/properties/**").permitAll()
-                        // Admin endpoints remain protected
-                        .requestMatchers("/api/admin/**").hasRole("OWNER")
+                        // Public read-only access for visits and leases (dashboard)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/visits/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/leases/**").permitAll()
+                        // Admin endpoints are controlled via @PreAuthorize annotations
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )

@@ -12,7 +12,22 @@ export default function PropertyList() {
     maxPrice: ""
   });
 
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return '₹0';
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+    } catch {
+      return `₹${Number(value).toLocaleString('en-IN')}`;
+    }
+  };
+
   function getPropertyImage(p) {
+    // Prefer uploaded images if present
+    if (p && Array.isArray(p.imageUrls) && p.imageUrls.length > 0) {
+      const url = p.imageUrls[0];
+      // If backend returned relative path like "/uploads/...", prefix host
+      return url.startsWith("http") ? url : `http://localhost:8080${url}`;
+    }
     const cityKey = (p.city || '').toLowerCase();
     const typeKey = (p.type || '').toLowerCase();
     const byType = {
@@ -110,7 +125,7 @@ export default function PropertyList() {
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Min Price ($)</label>
+            <label className="form-label">Min Price (₹)</label>
             <input
               type="number"
               placeholder="0"
@@ -119,7 +134,7 @@ export default function PropertyList() {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Max Price ($)</label>
+            <label className="form-label">Max Price (₹)</label>
             <input
               type="number"
               placeholder="No limit"
@@ -158,7 +173,7 @@ export default function PropertyList() {
                   <img className="property-card-img" src={getPropertyImage(property)} alt={property.title} loading="lazy" />
                   <div className="property-card-overlay" />
                   <div className="property-card-chip">{property.city}</div>
-                  <div className="property-card-price">${property.price?.toLocaleString()}</div>
+                  <div className="property-card-price">{formatINR(property.price)}</div>
                 </div>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#1f2937', marginBottom: '0.35rem' }}>

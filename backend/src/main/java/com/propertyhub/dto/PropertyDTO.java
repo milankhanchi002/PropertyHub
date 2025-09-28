@@ -1,8 +1,6 @@
 package com.propertyhub.dto;
 
-import com.propertyhub.model.PropertyType;
-
-import java.math.BigDecimal;
+import java.util.List;
 
 public class PropertyDTO {
     private Long id;
@@ -15,12 +13,13 @@ public class PropertyDTO {
     private String type;
     private String ownerName;
     private String ownerEmail;
+    private List<String> imageUrls;
 
     // Constructors
     public PropertyDTO() {}
 
     public PropertyDTO(Long id, String title, String description, String address, String city, boolean available,
-                       double price, String type, String ownerName, String ownerEmail) {
+                       double price, String type, String ownerName, String ownerEmail, List<String> imageUrls) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -31,6 +30,7 @@ public class PropertyDTO {
         this.type = type;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
+        this.imageUrls = imageUrls;
     }
 
     // Getters and Setters
@@ -115,5 +115,13 @@ public class PropertyDTO {
 
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
+    }
+
+    public List<String> getImageUrls() {
+        return imageUrls;
+    }
+
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 }

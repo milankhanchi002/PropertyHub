@@ -14,7 +14,20 @@ export default function PropertyDetail() {
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return '₹0';
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+    } catch {
+      return `₹${Number(value).toLocaleString('en-IN')}`;
+    }
+  };
+
   function getPropertyImage(p = {}) {
+    if (p && Array.isArray(p.imageUrls) && p.imageUrls.length > 0) {
+      const url = p.imageUrls[0];
+      return url.startsWith('http') ? url : `http://localhost:8080${url}`;
+    }
     const cityKey = (p.city || '').toLowerCase();
     const typeKey = (p.type || '').toLowerCase();
     const byType = {
@@ -77,14 +90,14 @@ export default function PropertyDetail() {
         </Link>
       </div>
 
-      {/* Hero Image */}
+      {/* Hero Image (first uploaded image if available) */}
       <div className="hero-image">
         <img src={getPropertyImage(property)} alt={property.title} />
         <div className="overlay" />
         <div className="hero-text">
           <div className="badge badge-info" style={{ marginBottom: '0.5rem' }}>{property.city}</div>
           <h1 style={{ fontSize: '2rem', fontWeight: '800' }}>{property.title}</h1>
-          <div style={{ marginTop: '0.25rem', fontWeight: '800' }}>${property.price?.toLocaleString()}</div>
+          <div style={{ marginTop: '0.25rem', fontWeight: '800' }}>{formatINR(property.price)}</div>
         </div>
       </div>
 
@@ -106,45 +119,37 @@ export default function PropertyDetail() {
               📍 {property.address}
             </p>
             <div style={{ fontSize: '2rem', fontWeight: '800', color: '#667eea' }}>
-              ${property.price?.toLocaleString()}
+              {formatINR(property.price)}
             </div>
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>
-              Description
-            </h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>Description</h3>
             <p style={{ color: '#4b5563', lineHeight: '1.6' }}>
               {property.description}
             </p>
           </div>
 
-          {(property.ownerName || property.ownerEmail) && (
-            <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>
-                Property Owner
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ 
-                  width: '50px', 
-                  height: '50px', 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: '600'
-                }}>
-                  {property.ownerName?.charAt(0)?.toUpperCase()}
-                </div>
-                <div>
-                  <p style={{ fontWeight: '600', color: '#1f2937' }}>{property.ownerName}</p>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>{property.ownerEmail}</p>
-                </div>
-              </div>
+        {/* Image Gallery */}
+        {Array.isArray(property.imageUrls) && property.imageUrls.length > 1 && (
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>Gallery</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              {property.imageUrls.slice(1).map((u, idx) => {
+                const url = u.startsWith('http') ? u : `http://localhost:8080${u}`;
+                return (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt={`Property image ${idx + 2}`}
+                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '0.5rem' }}
+                    loading="lazy"
+                  />
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
           {/* Action Buttons */}
           {user && property.available && (

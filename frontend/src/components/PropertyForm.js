@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { uploadPropertyImages } from "../api";
 
 export default function PropertyForm() {
   const storedUser = localStorage.getItem("user");
@@ -17,6 +18,7 @@ export default function PropertyForm() {
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [files, setFiles] = useState([]);
 
   function change(e) {
     const { name, value, type, checked } = e.target;
@@ -35,7 +37,7 @@ export default function PropertyForm() {
     }
 
     setLoading(true);
-    setStatusMessage("Posting...");
+    setStatusMessage("Posting property...");
 
     try {
       const payload = { ...form, price: Number(form.price) };
@@ -58,7 +60,20 @@ export default function PropertyForm() {
       }
 
       const data = await res.json();
-      setStatusMessage(`Property "${data.title}" posted successfully!`);
+
+      // If images were selected, upload them now
+      if (files && files.length > 0) {
+        try {
+          setStatusMessage("Uploading images...");
+          const uploaded = await uploadPropertyImages(data.id, files);
+          setStatusMessage(`Property "${data.title}" posted with ${uploaded.length} image(s)!`);
+        } catch (imgErr) {
+          console.error(imgErr);
+          setStatusMessage(`Property "${data.title}" posted, but image upload failed: ${imgErr.message}`);
+        }
+      } else {
+        setStatusMessage(`Property "${data.title}" posted successfully!`);
+      }
 
       setForm({
         title: "",
@@ -69,6 +84,7 @@ export default function PropertyForm() {
         price: "",
         available: true,
       });
+      setFiles([]);
     } catch (err) {
       console.error(err);
       setStatusMessage("Failed to post property: " + err.message);
@@ -96,6 +112,18 @@ export default function PropertyForm() {
         <label>
           <input type="checkbox" name="available" checked={form.available} onChange={change} /> Available
         </label>
+        <div style={{ marginTop: "0.75rem" }}>
+          <label style={{ display: "block", marginBottom: "0.25rem" }}>Property Images</label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          />
+          {files && files.length > 0 && (
+            <p style={{ fontSize: "0.875rem", color: "#4a5568" }}>{files.length} file(s) selected</p>
+          )}
+        </div>
         <br />
         <button type="submit" disabled={loading}>{loading ? "Posting..." : "Post Property"}</button>
       </form>

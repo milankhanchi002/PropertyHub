@@ -12,9 +12,9 @@ import java.util.stream.Collectors;
 public class VisitService {
     private final VisitRepository visitRepository;
     public VisitService(VisitRepository visitRepository){this.visitRepository = visitRepository;}
-    public Visit save(Visit v){return visitRepository.save(v);}
+    public Visit save(Visit v){return visitRepository.save(v);}    
     public List<Visit> findAll(){return visitRepository.findAll();}
-    public Optional<Visit> findById(Long id){return visitRepository.findById(id);}
+    public Optional<Visit> findById(Long id){return visitRepository.findById(id);} 
 
     private VisitDTO toDTO(Visit v) {
         return new VisitDTO(
@@ -30,5 +30,22 @@ public class VisitService {
 
     public List<VisitDTO> findAllDTO() {
         return visitRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public List<VisitDTO> findDTOByOwnerId(Long ownerId) {
+        return visitRepository.findByOwnerId(ownerId).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public List<VisitDTO> findDTOByTenantEmail(String tenantEmail) {
+        return visitRepository.findByTenantEmail(tenantEmail).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public Optional<VisitDTO> updateStatus(Long id, String status) {
+        Optional<Visit> opt = visitRepository.findById(id);
+        if (opt.isEmpty()) return Optional.empty();
+        Visit v = opt.get();
+        v.setStatus(status);
+        Visit saved = visitRepository.save(v);
+        return Optional.of(toDTO(saved));
     }
 }

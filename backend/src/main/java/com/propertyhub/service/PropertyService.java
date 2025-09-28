@@ -29,7 +29,8 @@ public class PropertyService {
                 p.getPrice().doubleValue(),
                 p.getType().name(),
                 p.getOwner() != null ? p.getOwner().getName() : null,
-                p.getOwner() != null ? p.getOwner().getEmail() : null
+                p.getOwner() != null ? p.getOwner().getEmail() : null,
+                p.getImageUrls()
         );
     }
 
@@ -81,5 +82,9 @@ public class PropertyService {
 
     public void deleteById(Long id) {
         propertyRepository.deleteById(id);
+    }
+
+    public List<Property> findByOwnerId(Long ownerId) {
+        return propertyRepository.findByOwnerId(ownerId);
     }
 }

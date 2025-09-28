@@ -33,14 +33,14 @@ public class AuthController {
         }
 
         // Use role from form; default to TENANT; do not allow self-register as ADMIN
-        Role requestedRole = user.getRole();
-        if (requestedRole == null) {
-            requestedRole = Role.TENANT;
-        }
-        if (requestedRole == Role.ADMIN) {
-            requestedRole = Role.TENANT;
-        }
-        user.setRole(requestedRole);
+//        Role requestedRole = user.getRole();
+//        if (requestedRole == null) {
+//            requestedRole = Role.TENANT;
+//        }
+//        if (requestedRole == Role.ADMIN) {
+//            requestedRole = Role.TENANT;
+//        }
+//        user.setRole(requestedRole);
 
         // Encode password
         user.setPassword(passwordEncoder.encode(user.getPassword()));

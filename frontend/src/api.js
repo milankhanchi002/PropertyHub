@@ -5,6 +5,11 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
+function authHeaders() {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 // ================= Helper =================
 async function handleResponse(res) {
   const text = await res.text();
@@ -50,8 +55,15 @@ export async function getAdminProperties() {
   return handleResponse(res);
 }
 
+export async function getOwnerProperties(ownerId) {
+  const res = await fetch(`${BASE_URL}/properties/owner/${ownerId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
 export async function toggleProperty(id) {
-  const res = await fetch(`${BASE_URL}/admin/properties/${id}/toggle`, {
+  const res = await fetch(`${BASE_URL}/properties/${id}/toggle`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${getToken()}` },
   });
@@ -65,7 +77,7 @@ export async function getProperties(params = {}) {
 
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${getToken()}`  // ⚡ Add Authorization header
+      ...authHeaders()
     }
   });
 
@@ -126,6 +138,32 @@ export async function bookVisit(propertyId, data) {
 
 export async function getVisits() {
   const res = await fetch(`${BASE_URL}/visits`, {
+    headers: { ...authHeaders() },
+  });
+  return handleResponse(res);
+}
+
+export async function getVisitsByOwner(ownerId) {
+  const res = await fetch(`${BASE_URL}/visits/owner/${ownerId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function getVisitsByTenant(email) {
+  const url = new URL(`${BASE_URL}/visits/tenant`);
+  url.searchParams.set('email', email);
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function updateVisitStatus(id, value) {
+  const url = new URL(`${BASE_URL}/visits/${id}/status`);
+  url.searchParams.set('value', value);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return handleResponse(res);
@@ -146,10 +184,11 @@ export async function createLease(propertyId, data) {
 
 export async function getLeases() {
   const res = await fetch(`${BASE_URL}/leases`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
+    headers: { ...authHeaders() },
   });
   return handleResponse(res);
 }
+
 
 // ================= Search API =================
 export async function searchProperties(filters = {}) {
@@ -164,6 +203,21 @@ export async function searchProperties(filters = {}) {
   
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// ================= Image Upload API =================
+export async function uploadPropertyImages(propertyId, files) {
+  const formData = new FormData();
+  for (const f of files) {
+    formData.append('files', f);
+  }
+
+  const res = await fetch(`${BASE_URL}/properties/${propertyId}/images`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: formData,
   });
   return handleResponse(res);
 }
