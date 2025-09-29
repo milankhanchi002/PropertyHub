@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getVisits, updateVisitStatus, getLeases, getAdminProperties, getOwnerProperties, deleteProperty, toggleProperty, getVisitsByOwner, getVisitsByTenant } from '../api';
+import { getVisits, updateVisitStatus, getLeases, getAdminProperties, getOwnerProperties, deleteProperty, toggleProperty, getVisitsByOwner, getVisitsByTenant, updateLeaseStatus } from '../api';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -25,6 +25,17 @@ export default function Dashboard() {
       return `₹${Number(value).toLocaleString('en-IN')}`;
     }
   };
+
+  async function handleLeaseDecision(lease, value) {
+    try {
+      const updated = await updateLeaseStatus(lease.id, value);
+      setLeases(prev => prev.map(l => l.id === lease.id ? { ...l, status: updated.status } : l));
+      showToast('success', `Lease ${value.toLowerCase()} successfully`);
+    } catch (err) {
+      console.error('Failed to update lease status:', err);
+      showToast('error', 'Failed to update lease: ' + (err?.message || 'Unknown error'));
+    }
+  }
 
   async function handleToggleAvailability(property) {
     try {
@@ -433,6 +444,7 @@ export default function Dashboard() {
                             <th>End Date</th>
                             <th>Monthly Rent</th>
                             <th>Status</th>
+                            {(user.role === 'OWNER' || user.role === 'ADMIN') && <th>Action</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -455,6 +467,18 @@ export default function Dashboard() {
                                   {lease.status}
                                 </span>
                               </td>
+                              {(user.role === 'OWNER' || user.role === 'ADMIN') && (
+                                <td>
+                                  {lease.status === 'DRAFT' ? (
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                      <button className="btn-success" onClick={() => handleLeaseDecision(lease, 'APPROVED')}>Approve</button>
+                                      <button className="btn-danger" onClick={() => handleLeaseDecision(lease, 'REJECTED')}>Reject</button>
+                                    </div>
+                                  ) : (
+                                    <button className="btn-secondary" onClick={() => handleLeaseDecision(lease, 'DRAFT')}>Mark Draft</button>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>

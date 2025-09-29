@@ -189,6 +189,16 @@ export async function getLeases() {
   return handleResponse(res);
 }
 
+export async function updateLeaseStatus(id, value) {
+  const url = new URL(`${BASE_URL}/leases/${id}/status`);
+  url.searchParams.set('value', value);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
 
 // ================= Search API =================
 export async function searchProperties(filters = {}) {

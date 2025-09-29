@@ -34,4 +34,12 @@ public class LeaseService {
         return leaseRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
     public LeaseDTO toDTOResponse(Lease saved) { return toDTO(saved); }
+
+    public List<LeaseDTO> findByOwnerIdDTO(Long ownerId) {
+        return leaseRepository.findByOwnerId(ownerId).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public List<LeaseDTO> findByTenantEmailDTO(String email) {
+        return leaseRepository.findByTenantEmail(email).stream().map(this::toDTO).collect(Collectors.toList());
+    }
 }
