@@ -4,6 +4,8 @@ import com.propertyhub.dto.VisitDTO;
 import com.propertyhub.model.Visit;
 import com.propertyhub.model.Property;
 import com.propertyhub.repository.PropertyRepository;
+import com.propertyhub.repository.VisitMessageRepository;
+import com.propertyhub.model.VisitMessage;
 import com.propertyhub.repository.UserRepository;
 import com.propertyhub.service.VisitService;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +24,13 @@ public class VisitController {
     private final VisitService visitService;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
+    private final VisitMessageRepository visitMessageRepository;
 
-    public VisitController(VisitService visitService, PropertyRepository propertyRepository, UserRepository userRepository){
+    public VisitController(VisitService visitService, PropertyRepository propertyRepository, UserRepository userRepository, VisitMessageRepository visitMessageRepository){
         this.visitService = visitService;
         this.propertyRepository = propertyRepository;
         this.userRepository = userRepository;
+        this.visitMessageRepository = visitMessageRepository;
     }
 
     @PostMapping("/book")
@@ -44,7 +48,9 @@ public class VisitController {
                 saved.getTenantName(),
                 saved.getTenantEmail(),
                 saved.getVisitDateTime(),
-                saved.getStatus()
+                saved.getStatus(),
+                saved.getProposedDateTime(),
+                saved.getRescheduleStatus()
         );
         return ResponseEntity.ok(dto);
     }
@@ -109,5 +115,109 @@ public class VisitController {
         return visitService.updateStatus(id, value)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Owner requests reschedule with a new proposed datetime
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<?> requestReschedule(@PathVariable Long id, @RequestParam String proposedDateTime) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        if (!isAdmin) {
+            Optional<Visit> vOpt = visitService.findById(id);
+            if (vOpt.isEmpty()) return ResponseEntity.notFound().build();
+            Visit v = vOpt.get();
+            if (v.getProperty() == null || v.getProperty().getOwner() == null) {
+                return ResponseEntity.status(403).body(Map.of("error", "Forbidden: not your property"));
+            }
+            String ownerEmail = v.getProperty().getOwner().getEmail();
+            if (ownerEmail == null || !ownerEmail.equalsIgnoreCase(auth.getName())) {
+                return ResponseEntity.status(403).body(Map.of("error", "Forbidden: not your property"));
+            }
+        }
+        return visitService.requestReschedule(id, proposedDateTime)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Tenant responds to reschedule: ACCEPTED or DECLINED
+    @PreAuthorize("hasAnyRole('TENANT','ADMIN')")
+    @PutMapping("/{id}/reschedule/decision")
+    public ResponseEntity<?> decideReschedule(@PathVariable Long id, @RequestParam String decision) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        if (!isAdmin) {
+            Optional<Visit> vOpt = visitService.findById(id);
+            if (vOpt.isEmpty()) return ResponseEntity.notFound().build();
+            Visit v = vOpt.get();
+            if (v.getTenantEmail() == null || !v.getTenantEmail().equalsIgnoreCase(auth.getName())) {
+                return ResponseEntity.status(403).body(Map.of("error", "Forbidden: not your visit"));
+            }
+        }
+        return visitService.decideReschedule(id, decision)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.badRequest().build());
+    }
+
+    // Tenant can mark visit done or pending
+    @PreAuthorize("hasAnyRole('TENANT','ADMIN')")
+    @PutMapping("/{id}/tenant-status")
+    public ResponseEntity<?> tenantStatus(@PathVariable Long id, @RequestParam String value) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        if (!isAdmin) {
+            Optional<Visit> vOpt = visitService.findById(id);
+            if (vOpt.isEmpty()) return ResponseEntity.notFound().build();
+            Visit v = vOpt.get();
+            if (v.getTenantEmail() == null || !v.getTenantEmail().equalsIgnoreCase(auth.getName())) {
+                return ResponseEntity.status(403).body(Map.of("error", "Forbidden: not your visit"));
+            }
+        }
+        return visitService.updateStatus(id, value)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ====== Simple per-visit chat between owner and tenant ======
+    @PreAuthorize("hasAnyRole('TENANT','OWNER','ADMIN')")
+    @GetMapping("/{id}/messages")
+    public ResponseEntity<?> getMessages(@PathVariable Long id) {
+        Optional<Visit> vOpt = visitService.findById(id);
+        if (vOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Visit v = vOpt.get();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        if (!isAdmin) {
+            String email = auth.getName();
+            boolean isOwner = v.getProperty()!=null && v.getProperty().getOwner()!=null && email.equalsIgnoreCase(v.getProperty().getOwner().getEmail());
+            boolean isTenant = v.getTenantEmail()!=null && email.equalsIgnoreCase(v.getTenantEmail());
+            if (!isOwner && !isTenant) return ResponseEntity.status(403).body(Map.of("error","Forbidden"));
+        }
+        return ResponseEntity.ok(visitMessageRepository.findByVisitIdOrderByCreatedAtAsc(id));
+    }
+
+    @PreAuthorize("hasAnyRole('TENANT','OWNER','ADMIN')")
+    @PostMapping("/{id}/messages")
+    public ResponseEntity<?> postMessage(@PathVariable Long id, @RequestBody Map<String,String> payload) {
+        Optional<Visit> vOpt = visitService.findById(id);
+        if (vOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Visit v = vOpt.get();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        String email = auth.getName();
+        boolean isOwner = v.getProperty()!=null && v.getProperty().getOwner()!=null && email.equalsIgnoreCase(v.getProperty().getOwner().getEmail());
+        boolean isTenant = v.getTenantEmail()!=null && email.equalsIgnoreCase(v.getTenantEmail());
+        if (!isAdmin && !isOwner && !isTenant) return ResponseEntity.status(403).body(Map.of("error","Forbidden"));
+
+        String msg = payload.getOrDefault("message", "").trim();
+        if (msg.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error","Empty message"));
+
+        VisitMessage m = new VisitMessage();
+        m.setVisit(v);
+        m.setMessage(msg);
+        if (isAdmin) m.setSenderRole("ADMIN");
+        else if (isOwner) m.setSenderRole("OWNER");
+        else m.setSenderRole("TENANT");
+        return ResponseEntity.ok(visitMessageRepository.save(m));
     }
 }

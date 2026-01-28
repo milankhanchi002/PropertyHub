@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getProperty } from '../api';
+import { getProperty, updateProperty, uploadPropertyImages } from '../api';
 import VisitForm from './VisitForm';
 import LeaseForm from './LeaseForm';
 
@@ -11,6 +11,10 @@ export default function PropertyDetail() {
   const [error, setError] = useState('');
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [showLeaseForm, setShowLeaseForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState({ price: '', address: '', city: '' });
+  const [newImages, setNewImages] = useState([]);
+  const [saving, setSaving] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
@@ -50,6 +54,11 @@ export default function PropertyDetail() {
       try {
         const data = await getProperty(id);
         setProperty(data);
+        setEditForm({
+          price: data?.price ?? '',
+          address: data?.address ?? '',
+          city: data?.city ?? ''
+        });
       } catch (err) {
         console.error("Error fetching property:", err);
         setError("Failed to load property details.");
@@ -59,6 +68,54 @@ export default function PropertyDetail() {
     }
     fetchProperty();
   }, [id]);
+
+  function handleEditChange(e) {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  }
+
+  function handleImagesChange(e) {
+    const files = Array.from(e.target.files || []);
+    setNewImages(files);
+  }
+
+  async function handleSaveEdits(e) {
+    e.preventDefault();
+    if (!property) return;
+    setSaving(true);
+    setError('');
+    try {
+      const merged = {
+        // keep existing immutable/other fields
+        id: property.id,
+        title: property.title,
+        description: property.description,
+        type: property.type,
+        available: property.available,
+        imageUrls: property.imageUrls,
+        // apply edits
+        price: Number(editForm.price),
+        address: editForm.address,
+        city: editForm.city
+      };
+
+      await updateProperty(property.id, merged);
+
+      if (newImages && newImages.length > 0) {
+        await uploadPropertyImages(property.id, newImages);
+      }
+
+      const refreshed = await getProperty(property.id);
+      setProperty(refreshed);
+      setShowEditForm(false);
+      setNewImages([]);
+    } catch (err) {
+      console.error('Failed to save edits:', err);
+      setError(err?.message || 'Failed to update property');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -133,7 +190,7 @@ export default function PropertyDetail() {
         {/* Image Gallery */}
         {Array.isArray(property.imageUrls) && property.imageUrls.length > 1 && (
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>Gallery</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>More Photos</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
               {property.imageUrls.slice(1).map((u, idx) => {
                 const url = u.startsWith('http') ? u : `http://localhost:8080${u}`;
@@ -151,24 +208,42 @@ export default function PropertyDetail() {
           </div>
         )}
 
-          {/* Action Buttons */}
+          {/* Action Buttons */
+          }
           {user && property.available && (
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button 
-                onClick={() => setShowVisitForm(true)}
-                className="btn"
-              >
-                📅 Schedule Visit
-              </button>
-              {user.role === 'TENANT' && (
-                <button 
-                  onClick={() => setShowLeaseForm(true)}
-                  className="btn-success"
-                >
-                  📋 Apply for Lease
-                </button>
-              )}
-            </div>
+            (() => {
+              const isOwnerOfThisProperty = user.role === 'OWNER' && property.ownerEmail && user.email === property.ownerEmail;
+              if (isOwnerOfThisProperty) {
+                return (
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <button 
+                      onClick={() => setShowEditForm(true)}
+                      className="btn-secondary"
+                    >
+                      ✏️ Edit Property
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={() => setShowVisitForm(true)}
+                    className="btn"
+                  >
+                    📅 Schedule Visit
+                  </button>
+                  {user.role === 'TENANT' && (
+                    <button 
+                      onClick={() => setShowLeaseForm(true)}
+                      className="btn-success"
+                    >
+                      📋 Apply for Lease
+                    </button>
+                  )}
+                </div>
+              );
+            })()
           )}
         </div>
       </div>
@@ -211,6 +286,96 @@ export default function PropertyDetail() {
               propertyId={property.id} 
               onSuccess={() => setShowLeaseForm(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Property Modal (Owner) */}
+      {showEditForm && (
+        <div className="modal-overlay" onClick={() => setShowEditForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Edit Property</h3>
+              <button 
+                onClick={() => setShowEditForm(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            {error && (
+              <div style={{ 
+                background: '#fee2e2', 
+                color: '#991b1b', 
+                padding: '0.75rem', 
+                borderRadius: '0.5rem', 
+                marginBottom: '1.5rem',
+                border: '1px solid #fecaca'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdits}>
+              <div className="form-group">
+                <label className="form-label">Price (INR)</label>
+                <input
+                  type="number"
+                  name="price"
+                  value={editForm.price}
+                  onChange={handleEditChange}
+                  min="0"
+                  step="1"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={editForm.city}
+                  onChange={handleEditChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Address</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={editForm.address}
+                  onChange={handleEditChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Upload New Photos</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImagesChange}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowEditForm(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -4,6 +4,8 @@ import com.propertyhub.model.Lease;
 import com.propertyhub.model.Property;
 import com.propertyhub.model.User;
 import com.propertyhub.repository.PropertyRepository;
+import com.propertyhub.repository.LeaseMessageRepository;
+import com.propertyhub.model.LeaseMessage;
 import com.propertyhub.repository.UserRepository;
 import com.propertyhub.service.LeaseService;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +25,13 @@ public class LeaseController {
     private final LeaseService leaseService;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
+    private final LeaseMessageRepository leaseMessageRepository;
 
-    public LeaseController(LeaseService leaseService, PropertyRepository propertyRepository, UserRepository userRepository){
+    public LeaseController(LeaseService leaseService, PropertyRepository propertyRepository, UserRepository userRepository, LeaseMessageRepository leaseMessageRepository){
         this.leaseService = leaseService;
         this.propertyRepository = propertyRepository;
         this.userRepository = userRepository;
+        this.leaseMessageRepository = leaseMessageRepository;
     }
 
     @PostMapping
@@ -93,5 +97,56 @@ public class LeaseController {
         lease.setStatus(upper);
         Lease saved = leaseService.save(lease);
         return ResponseEntity.ok(leaseService.toDTOResponse(saved));
+    }
+
+    // ====== Simple per-lease chat between owner and tenant ======
+    @PreAuthorize("hasAnyRole('TENANT','OWNER','ADMIN')")
+    @GetMapping("/{id}/messages")
+    public ResponseEntity<?> getMessages(@PathVariable Long id) {
+        var lOpt = leaseService.findById(id);
+        if (lOpt.isEmpty()) return ResponseEntity.notFound().build();
+        var lease = lOpt.get();
+        var property = lease.getProperty();
+        var ownerEmail = property != null && property.getOwner()!=null ? property.getOwner().getEmail() : null;
+        var tenantEmail = lease.getTenantEmail();
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        if (!isAdmin) {
+            String email = auth.getName();
+            boolean isOwner = ownerEmail!=null && email.equalsIgnoreCase(ownerEmail);
+            boolean isTenant = tenantEmail!=null && email.equalsIgnoreCase(tenantEmail);
+            if (!isOwner && !isTenant) return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(leaseMessageRepository.findByLeaseIdOrderByCreatedAtAsc(id));
+    }
+
+    @PreAuthorize("hasAnyRole('TENANT','OWNER','ADMIN')")
+    @PostMapping("/{id}/messages")
+    public ResponseEntity<?> postMessage(@PathVariable Long id, @RequestBody java.util.Map<String,String> payload) {
+        var lOpt = leaseService.findById(id);
+        if (lOpt.isEmpty()) return ResponseEntity.notFound().build();
+        var lease = lOpt.get();
+        var property = lease.getProperty();
+        var ownerEmail = property != null && property.getOwner()!=null ? property.getOwner().getEmail() : null;
+        var tenantEmail = lease.getTenantEmail();
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        String email = auth.getName();
+        boolean isOwner = ownerEmail!=null && email.equalsIgnoreCase(ownerEmail);
+        boolean isTenant = tenantEmail!=null && email.equalsIgnoreCase(tenantEmail);
+        if (!isAdmin && !isOwner && !isTenant) return ResponseEntity.status(403).build();
+
+        String msg = payload.getOrDefault("message", "").trim();
+        if (msg.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error","Empty message"));
+
+        LeaseMessage m = new LeaseMessage();
+        m.setLease(lease);
+        m.setMessage(msg);
+        if (isAdmin) m.setSenderRole("ADMIN");
+        else if (isOwner) m.setSenderRole("OWNER");
+        else m.setSenderRole("TENANT");
+        return ResponseEntity.ok(leaseMessageRepository.save(m));
     }
 }

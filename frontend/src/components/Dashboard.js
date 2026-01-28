@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getVisits, updateVisitStatus, getLeases, getAdminProperties, getOwnerProperties, deleteProperty, toggleProperty, getVisitsByOwner, getVisitsByTenant, updateLeaseStatus } from '../api';
+import { getVisits, updateVisitStatus, getLeases, getAdminProperties, getOwnerProperties, deleteProperty, toggleProperty, getVisitsByOwner, getVisitsByTenant, updateLeaseStatus, requestVisitReschedule, decideVisitReschedule, tenantUpdateVisitStatus, getVisitMessages, postVisitMessage, getLeaseMessages, postLeaseMessage } from '../api';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,6 +14,17 @@ export default function Dashboard() {
   const loadingRef = useRef(false);
   const abortRef = useRef(null);
   const [loaded, setLoaded] = useState({ overview: false, visits: false, leases: false, properties: false });
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatVisit, setChatVisit] = useState(null);
+  const [chatMode, setChatMode] = useState('VISIT');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleVisit, setRescheduleVisit] = useState(null);
+  const [rescheduleInput, setRescheduleInput] = useState('');
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
@@ -25,6 +36,102 @@ export default function Dashboard() {
       return `₹${Number(value).toLocaleString('en-IN')}`;
     }
   };
+
+  async function openVisitChat(visit) {
+    setChatMode('VISIT');
+    setChatVisit(visit);
+    setChatOpen(true);
+    try {
+      const msgs = await getVisitMessages(visit.id);
+      setChatMessages(Array.isArray(msgs) ? msgs : []);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+      showToast('error', 'Failed to load messages');
+    }
+  }
+
+  async function openLeaseChat(lease) {
+    setChatMode('LEASE');
+    setChatVisit({ id: lease.id, propertyTitle: lease.propertyTitle });
+    setChatOpen(true);
+    try {
+      const msgs = await getLeaseMessages(lease.id);
+      setChatMessages(Array.isArray(msgs) ? msgs : []);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+      showToast('error', 'Failed to load messages');
+    }
+  }
+
+  async function sendChatMessage() {
+    if (!chatVisit || !chatInput.trim()) return;
+    setChatSending(true);
+    try {
+      const saved = chatMode === 'LEASE'
+        ? await postLeaseMessage(chatVisit.id, chatInput.trim())
+        : await postVisitMessage(chatVisit.id, chatInput.trim());
+      setChatMessages(prev => [...prev, saved]);
+      setChatInput('');
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      showToast('error', 'Failed to send message');
+    } finally {
+      setChatSending(false);
+    }
+  }
+
+  function openOwnerRescheduleForm(visit) {
+    const base = visit.visitDateTime ? new Date(visit.visitDateTime) : new Date();
+    const pad = (n) => `${n}`.padStart(2, '0');
+    const isoLocal = `${base.getFullYear()}-${pad(base.getMonth()+1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`;
+    setRescheduleVisit(visit);
+    setRescheduleInput(isoLocal);
+    setRescheduleError('');
+    setRescheduleOpen(true);
+  }
+
+  async function submitOwnerReschedule(e) {
+    e?.preventDefault?.();
+    if (!rescheduleVisit || !rescheduleInput) return;
+    setRescheduleSubmitting(true);
+    setRescheduleError('');
+    try {
+      const updated = await requestVisitReschedule(rescheduleVisit.id, rescheduleInput);
+      setVisits(prev => prev.map(v => v.id === rescheduleVisit.id ? { ...v, proposedDateTime: updated.proposedDateTime, rescheduleStatus: updated.rescheduleStatus } : v));
+      setRescheduleOpen(false);
+      setRescheduleVisit(null);
+      setRescheduleInput('');
+      showToast('success', 'Reschedule requested');
+    } catch (err) {
+      console.error('Failed to request reschedule:', err);
+      setRescheduleError(err?.message || 'Failed to request reschedule');
+    } finally {
+      setRescheduleSubmitting(false);
+    }
+  }
+
+  async function handleTenantRescheduleDecision(visit, decision) {
+    try {
+      const updated = await decideVisitReschedule(visit.id, decision);
+      setVisits(prev => prev.map(v => v.id === visit.id ? { ...v, visitDateTime: updated.visitDateTime, proposedDateTime: updated.proposedDateTime, rescheduleStatus: updated.rescheduleStatus } : v));
+      showToast('success', `Reschedule ${decision.toLowerCase()}`);
+    } catch (err) {
+      console.error('Failed to submit decision:', err);
+      showToast('error', 'Failed to submit decision: ' + (err?.message || 'Unknown error'));
+    }
+  }
+
+  async function handleTenantToggleVisitStatus(visit) {
+    const next = visit.status === 'PENDING' ? 'DONE' : 'PENDING';
+    try {
+      const updated = await tenantUpdateVisitStatus(visit.id, next);
+      setVisits(prev => prev.map(v => v.id === visit.id ? { ...v, status: updated.status } : v));
+      showToast('success', `Visit marked as ${next}`);
+    } catch (err) {
+      console.error('Failed to update visit status:', err);
+      showToast('error', 'Failed to update visit status: ' + (err?.message || 'Unknown error'));
+    }
+  }
 
   async function handleLeaseDecision(lease, value) {
     try {
@@ -221,6 +328,41 @@ export default function Dashboard() {
           {toast.message}
         </div>
       )}
+
+      {/* Owner Reschedule Modal */}
+      {rescheduleOpen && (
+        <div className="modal-overlay" onClick={() => setRescheduleOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Propose New Visit Time</h3>
+              <button onClick={() => setRescheduleOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+            </div>
+
+            {rescheduleError && (
+              <div style={{ background: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '0.75rem', border: '1px solid #fecaca' }}>
+                {rescheduleError}
+              </div>
+            )}
+
+            <form onSubmit={submitOwnerReschedule}>
+              <div className="form-group">
+                <label className="form-label">New Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={rescheduleInput}
+                  onChange={(e) => setRescheduleInput(e.target.value)}
+                  min={new Date().toISOString().slice(0,16)}
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-secondary" onClick={() => setRescheduleOpen(false)}>Cancel</button>
+                <button type="submit" disabled={rescheduleSubmitting}>{rescheduleSubmitting ? 'Submitting…' : 'Submit'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div className="dashboard-grid">
         {/* Sidebar */}
         <div className="sidebar">
@@ -396,8 +538,10 @@ export default function Dashboard() {
                           <tr>
                             <th>Property</th>
                             <th>Date & Time</th>
+                            <th>Proposed</th>
+                            <th>Reschedule</th>
                             <th>Status</th>
-                            {(user.role === 'OWNER') && <th>Action</th>}
+                            {(user.role === 'OWNER' || user.role === 'TENANT') && <th>Action</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -405,6 +549,8 @@ export default function Dashboard() {
                             <tr key={visit.id}>
                               <td>{visit.propertyTitle || 'Property'}</td>
                               <td>{new Date(visit.visitDateTime).toLocaleString()}</td>
+                              <td>{visit.proposedDateTime ? new Date(visit.proposedDateTime).toLocaleString() : '—'}</td>
+                              <td>{visit.rescheduleStatus || '—'}</td>
                               <td>
                                 <span className={`badge ${visit.status === 'PENDING' ? 'badge-warning' : 'badge-success'}`}>
                                   {visit.status}
@@ -412,9 +558,37 @@ export default function Dashboard() {
                               </td>
                               {(user.role === 'OWNER') && (
                                 <td>
-                                  <button className="btn-secondary" onClick={() => handleToggleVisitStatus(visit)}>
-                                    Mark {visit.status === 'PENDING' ? 'Done' : 'Pending'}
-                                  </button>
+                                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <button className="btn-secondary" onClick={() => handleToggleVisitStatus(visit)}>
+                                      Mark {visit.status === 'PENDING' ? 'Done' : 'Pending'}
+                                    </button>
+                                    <button className="btn" onClick={() => openOwnerRescheduleForm(visit)}>
+                                      Request New Time
+                                    </button>
+                                    <button className="btn" onClick={() => openVisitChat(visit)}>
+                                      💬 Chat
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
+                              {(user.role === 'TENANT') && (
+                                <td>
+                                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {visit.rescheduleStatus === 'REQUESTED' && (
+                                      <button className="btn-secondary" onClick={() => handleTenantToggleVisitStatus(visit)}>
+                                        Mark {visit.status === 'PENDING' ? 'Done' : 'Pending'}
+                                      </button>
+                                    )}
+                                    {visit.rescheduleStatus === 'REQUESTED' && (
+                                      <>
+                                        <button className="btn-success" onClick={() => handleTenantRescheduleDecision(visit, 'ACCEPTED')}>Accept</button>
+                                        <button className="btn-danger" onClick={() => handleTenantRescheduleDecision(visit, 'DECLINED')}>Decline</button>
+                                      </>
+                                    )}
+                                    <button className="btn" onClick={() => openVisitChat(visit)}>
+                                      💬 Chat
+                                    </button>
+                                  </div>
                                 </td>
                               )}
                             </tr>
@@ -439,26 +613,29 @@ export default function Dashboard() {
                         <thead>
                           <tr>
                             <th>Property</th>
-                            <th>Applicant</th>
+                            {(user.role === 'OWNER' || user.role === 'ADMIN') && <th>Applicant</th>}
                             <th>Start Date</th>
                             <th>End Date</th>
                             <th>Monthly Rent</th>
                             <th>Status</th>
                             {(user.role === 'OWNER' || user.role === 'ADMIN') && <th>Action</th>}
+                            <th>Chat</th>
                           </tr>
                         </thead>
                         <tbody>
                           {leases.map((lease) => (
                             <tr key={lease.id}>
                               <td>{lease.propertyTitle || 'Property'}</td>
-                              <td>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontWeight: 600 }}>{lease.tenantName || '—'}</span>
-                                  {lease.tenantEmail && (
-                                    <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{lease.tenantEmail}</span>
-                                  )}
-                                </div>
-                              </td>
+                              {(user.role === 'OWNER' || user.role === 'ADMIN') && (
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontWeight: 600 }}>{lease.tenantName || '—'}</span>
+                                    {lease.tenantEmail && (
+                                      <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{lease.tenantEmail}</span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
                               <td>{new Date(lease.startDate).toLocaleDateString()}</td>
                               <td>{new Date(lease.endDate).toLocaleDateString()}</td>
                               <td>{formatINR(lease.monthlyRent)}</td>
@@ -479,6 +656,11 @@ export default function Dashboard() {
                                   )}
                                 </td>
                               )}
+                              <td>
+                                <button className="btn" onClick={() => openLeaseChat(lease)}>
+                                  💬 Chat
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -549,6 +731,46 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Visit Chat Modal */}
+      {chatOpen && (
+        <div className="modal-overlay" onClick={() => setChatOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                Chat - {chatVisit?.propertyTitle || 'Visit'}
+              </h3>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '0.75rem' }}>
+              {chatMessages.length === 0 ? (
+                <p style={{ color: '#6b7280' }}>No messages yet.</p>
+              ) : (
+                chatMessages.map((m) => (
+                  <div key={m.id} style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{m.senderRole} · {m.createdAt?.replace('T',' ').slice(0,16)}</div>
+                    <div>{m.message}</div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message..."
+                style={{ flex: 1 }}
+              />
+              <button className="btn" onClick={sendChatMessage} disabled={chatSending || !chatInput.trim()}>
+                {chatSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

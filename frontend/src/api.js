@@ -5,6 +5,23 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
+// ================= Lease Chat APIs =================
+export async function getLeaseMessages(id) {
+  const res = await fetch(`${BASE_URL}/leases/${id}/messages`, {
+    headers: { ...authHeaders() },
+  });
+  return handleResponse(res);
+}
+
+export async function postLeaseMessage(id, message) {
+  const res = await fetch(`${BASE_URL}/leases/${id}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message })
+  });
+  return handleResponse(res);
+}
+
 function authHeaders() {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
@@ -165,6 +182,56 @@ export async function updateVisitStatus(id, value) {
   const res = await fetch(url.toString(), {
     method: 'PUT',
     headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// Owner requests reschedule with proposed datetime (ISO local like 2025-12-31T14:30)
+export async function requestVisitReschedule(id, proposedDateTime) {
+  const url = new URL(`${BASE_URL}/visits/${id}/reschedule`);
+  url.searchParams.set('proposedDateTime', proposedDateTime);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// Tenant decides reschedule (ACCEPTED or DECLINED)
+export async function decideVisitReschedule(id, decision) {
+  const url = new URL(`${BASE_URL}/visits/${id}/reschedule/decision`);
+  url.searchParams.set('decision', decision);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// Tenant updates their visit status (e.g., DONE or PENDING)
+export async function tenantUpdateVisitStatus(id, value) {
+  const url = new URL(`${BASE_URL}/visits/${id}/tenant-status`);
+  url.searchParams.set('value', value);
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// ================= Visit Chat APIs =================
+export async function getVisitMessages(id) {
+  const res = await fetch(`${BASE_URL}/visits/${id}/messages`, {
+    headers: { ...authHeaders() },
+  });
+  return handleResponse(res);
+}
+
+export async function postVisitMessage(id, message) {
+  const res = await fetch(`${BASE_URL}/visits/${id}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message })
   });
   return handleResponse(res);
 }
