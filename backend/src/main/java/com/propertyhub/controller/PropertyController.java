@@ -208,4 +208,49 @@ public class PropertyController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    // ✅ Delete a specific image from a property
+    @DeleteMapping("/{id}/images")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public ResponseEntity<Void> deleteImage(@PathVariable Long id, @RequestParam String imageUrl) {
+        Optional<Property> pOpt = propertyService.findById(id);
+        if (pOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
+        
+        if (!isAdmin) {
+            String email = auth.getName();
+            Optional<User> currentUser = userRepository.findByEmail(email);
+            if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
+            User user = currentUser.get();
+            Property property = pOpt.get();
+            if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
+                return ResponseEntity.status(403).build();
+            }
+        }
+
+        Property property = pOpt.get();
+        List<String> imageUrls = property.getImageUrls();
+        if (imageUrls == null || !imageUrls.contains(imageUrl)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            // Remove from database
+            imageUrls.remove(imageUrl);
+            property.setImageUrls(imageUrls);
+            propertyService.save(property);
+
+            // Delete physical file
+            if (imageUrl.startsWith("/uploads/properties/")) {
+                Path filePath = Paths.get(imageUrl.substring(1)); // Remove leading slash
+                Files.deleteIfExists(filePath);
+            }
+
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }

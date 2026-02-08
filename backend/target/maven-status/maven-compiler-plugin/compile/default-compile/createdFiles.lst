@@ -1,3 +1,4 @@
+com/propertyhub/model/VisitMessage.class
 com/propertyhub/dto/LeaseDTO.class
 com/propertyhub/repository/VisitRepository.class
 com/propertyhub/security/WebSecurityConfig.class
@@ -13,10 +14,13 @@ com/propertyhub/model/Lease.class
 com/propertyhub/model/Role.class
 com/propertyhub/model/Visit.class
 com/propertyhub/security/JwtUtil.class
+com/propertyhub/model/LeaseMessage.class
 com/propertyhub/PropertyHubApplication.class
+com/propertyhub/repository/LeaseMessageRepository.class
 com/propertyhub/controller/AdminController.class
 com/propertyhub/service/LeaseService.class
 com/propertyhub/dto/PropertyDTO.class
+com/propertyhub/repository/VisitMessageRepository.class
 com/propertyhub/repository/UserRepository.class
 com/propertyhub/repository/PropertyRepository.class
 com/propertyhub/repository/LeaseRepository.class

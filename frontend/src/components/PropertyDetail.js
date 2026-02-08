@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getProperty, updateProperty, uploadPropertyImages } from '../api';
+import { getProperty, updateProperty, uploadPropertyImages, deletePropertyImage } from '../api';
 import VisitForm from './VisitForm';
 import LeaseForm from './LeaseForm';
 
@@ -114,6 +114,20 @@ export default function PropertyDetail() {
       setError(err?.message || 'Failed to update property');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteImage(imageUrl) {
+    if (!property) return;
+    if (!window.confirm('Are you sure you want to delete this image?')) return;
+    
+    try {
+      await deletePropertyImage(property.id, imageUrl);
+      const refreshed = await getProperty(property.id);
+      setProperty(refreshed);
+    } catch (err) {
+      console.error('Failed to delete image:', err);
+      setError(err?.message || 'Failed to delete image');
     }
   }
 
@@ -362,6 +376,59 @@ export default function PropertyDetail() {
                   onChange={handleImagesChange}
                 />
               </div>
+
+              {/* Current Images with Delete Option */}
+              {Array.isArray(property.imageUrls) && property.imageUrls.length > 0 && (
+                <div className="form-group">
+                  <label className="form-label">Current Photos</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.5rem' }}>
+                    {property.imageUrls.map((url, idx) => {
+                      const fullUrl = url.startsWith('http') ? url : `http://localhost:8080${url}`;
+                      return (
+                        <div key={idx} style={{ position: 'relative' }}>
+                          <img
+                            src={fullUrl}
+                            alt={`Property image ${idx + 1}`}
+                            style={{ 
+                              width: '100%', 
+                              height: '80px', 
+                              objectFit: 'cover', 
+                              borderRadius: '0.375rem',
+                              border: '1px solid #e5e7eb'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteImage(url)}
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '20px',
+                              height: '20px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Delete image"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Click the × button to delete an image
+                  </p>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                 <button 

@@ -298,3 +298,14 @@ export async function uploadPropertyImages(propertyId, files) {
   });
   return handleResponse(res);
 }
+
+export async function deletePropertyImage(propertyId, imageUrl) {
+  const url = new URL(`${BASE_URL}/properties/${propertyId}/images`);
+  url.searchParams.set('imageUrl', imageUrl);
+  
+  const res = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
