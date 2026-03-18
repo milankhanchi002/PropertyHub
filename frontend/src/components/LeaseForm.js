@@ -1,29 +1,30 @@
 import React, { useState } from "react";
 import { createLease } from "../api";
 
-export default function LeaseForm({ propertyId, onSuccess }) {
+export default function LeaseForm({ propertyId, property, onSuccess }) {
   const [form, setForm] = useState({
     tenantName: "",
     tenantEmail: "",
     startDate: "",
     endDate: "",
-    monthlyRent: ""
+    monthlyRent: property?.price || ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
-  // Pre-fill user data if available
+  // Pre-fill user data and property price if available
   React.useEffect(() => {
     if (user) {
       setForm(prev => ({
         ...prev,
         tenantName: user.name || "",
-        tenantEmail: user.email || ""
+        tenantEmail: user.email || "",
+        monthlyRent: property?.price || prev.monthlyRent
       }));
     }
-  }, [user]);
+  }, [user, property]);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -54,7 +55,7 @@ export default function LeaseForm({ propertyId, onSuccess }) {
         tenantEmail: user?.email || "",
         startDate: "",
         endDate: "",
-        monthlyRent: ""
+        monthlyRent: property?.price || ""
       });
     } catch (err) {
       console.error("Error creating lease:", err);
@@ -132,11 +133,11 @@ export default function LeaseForm({ propertyId, onSuccess }) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Proposed Monthly Rent ($)</label>
+          <label className="form-label">Monthly Rent (₹)</label>
           <input
             type="number"
             name="monthlyRent"
-            placeholder="Enter proposed monthly rent"
+            placeholder={property?.price ? `Property price: ₹${property.price}` : "Enter monthly rent"}
             value={form.monthlyRent}
             onChange={handleChange}
             min="0"

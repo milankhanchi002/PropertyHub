@@ -2,7 +2,6 @@ com/propertyhub/model/VisitMessage.class
 com/propertyhub/dto/LeaseDTO.class
 com/propertyhub/repository/VisitRepository.class
 com/propertyhub/security/WebSecurityConfig.class
-com/propertyhub/controller/LeaseController.class
 com/propertyhub/model/Property.class
 com/propertyhub/service/VisitService.class
 com/propertyhub/model/PropertyType.class
@@ -11,7 +10,6 @@ com/propertyhub/model/User.class
 com/propertyhub/config/FileStorageConfig.class
 com/propertyhub/service/PropertyService.class
 com/propertyhub/model/Lease.class
-com/propertyhub/model/Role.class
 com/propertyhub/model/Visit.class
 com/propertyhub/security/JwtUtil.class
 com/propertyhub/model/LeaseMessage.class

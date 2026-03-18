@@ -14,6 +14,9 @@ public class LeaseMessage {
 
     private String senderRole; // OWNER, TENANT, ADMIN
 
+    @Column(length = 255)
+    private String senderName;
+
     @Column(length = 2000)
     private String message;
 
@@ -30,6 +33,9 @@ public class LeaseMessage {
 
     public String getSenderRole() { return senderRole; }
     public void setSenderRole(String senderRole) { this.senderRole = senderRole; }
+
+    public String getSenderName() { return senderName; }
+    public void setSenderName(String senderName) { this.senderName = senderName; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }

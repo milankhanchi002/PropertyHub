@@ -10,7 +10,9 @@
     "react-scripts": "5.0.1",
     "@heroicons/react": "^2.0.18",
     "react-hot-toast": "^2.4.1",
-    "date-fns": "^2.30.0"
+    "date-fns": "^2.30.0",
+    "sockjs-client": "^1.6.1",
+    "@stomp/stompjs": "^7.0.0"
   },
   "scripts": {
     "start": "react-scripts start",

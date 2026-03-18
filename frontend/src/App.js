@@ -3,7 +3,6 @@ import { Routes, Route, Link } from 'react-router-dom';
 import PropertyList from './components/PropertyList';
 import PropertyForm from './components/PropertyForm';
 import PropertyDetail from './components/PropertyDetail';
-import AdminPanel from './components/AdminPanel';
 import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
 import { ToastProvider } from './components/Toast';
@@ -40,8 +39,7 @@ function App() {
           <nav>
             <Link to="/">🏠 Properties</Link>
             {user && <Link to="/dashboard">📊 Dashboard</Link>}
-            {(user?.role === "OWNER" || user?.role === "ADMIN") && <Link to="/post">➕ List Property</Link>}
-            {user?.role === "ADMIN" && <Link to="/admin">⚙️ Admin</Link>}
+            {user && <Link to="/post">➕ List Property</Link>}
             {!user ? (
               <Link to="/auth">🔐 Sign In</Link>
             ) : (
@@ -71,7 +69,6 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/post" element={user ? <PropertyForm /> : <AuthForm />} />
           <Route path="/property/:id" element={<PropertyDetail />} />
-          <Route path="/admin" element={user?.role === "ADMIN" ? <AdminPanel /> : <AuthForm />} />
           <Route path="/auth" element={<AuthForm />} />
         </Routes>
 

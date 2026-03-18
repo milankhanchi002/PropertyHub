@@ -32,7 +32,7 @@ export default function PropertyForm() {
     e.preventDefault();
 
     if (!user || !token) {
-      setStatusMessage("You must be logged in as OWNER or ADMIN to post a property.");
+      setStatusMessage("You must be logged in to post a property.");
       return;
     }
 

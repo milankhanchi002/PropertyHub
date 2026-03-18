@@ -2,6 +2,7 @@ package com.propertyhub.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.math.BigDecimal;
 
 @Entity
@@ -18,6 +19,8 @@ public class Lease {
     private LocalDate endDate;
     private BigDecimal monthlyRent;
     private String status;
+    
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     public Lease(){}
 
@@ -37,4 +40,7 @@ public class Lease {
     public void setMonthlyRent(BigDecimal monthlyRent){this.monthlyRent=monthlyRent;}
     public String getStatus(){return status;}
     public void setStatus(String status){this.status=status;}
+    
+    public LocalDateTime getCreatedAt(){return createdAt;}
+    public void setCreatedAt(LocalDateTime createdAt){this.createdAt=createdAt;}
 }

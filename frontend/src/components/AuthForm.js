@@ -3,7 +3,7 @@ import { registerUser, loginUser } from "../api";
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "TENANT" });
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,12 +30,8 @@ export default function AuthForm() {
       localStorage.setItem("token", res.token);
       localStorage.setItem("user", JSON.stringify(res.user));
 
-      // Redirect based on role
-      if (res.user?.role === "ADMIN") {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/";
-      }
+      // Redirect to dashboard
+      window.location.href = "/";
     } catch (err) {
       console.error(err);
       setError(err?.message || "Authentication failed");
@@ -52,7 +48,7 @@ export default function AuthForm() {
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
           <p style={{ color: '#6b7280' }}>
-            {isLogin ? "Sign in to your PropertyHub account" : "Join PropertyHub to find your perfect home"}
+            {isLogin ? "Sign in to your PropertyHub account" : "Join PropertyHub to find and list properties"}
           </p>
         </div>
 
@@ -107,17 +103,7 @@ export default function AuthForm() {
             />
           </div>
 
-          {!isLogin && (
-            <div className="form-group">
-              <label className="form-label">Account Type</label>
-              <select name="role" value={form.role} onChange={change}>
-                <option value="TENANT">Tenant - Looking for properties</option>
-                <option value="OWNER">Owner - List my properties</option>
-                <option value="AGENT">Agent - Real estate professional</option>
-              </select>
-            </div>
-          )}
-
+          
           <button type="submit" disabled={loading} style={{ width: '100%', marginTop: '1rem' }}>
             {loading ? (
               <>
@@ -135,7 +121,7 @@ export default function AuthForm() {
             onClick={() => {
               setIsLogin(!isLogin);
               setError("");
-              setForm({ name: "", email: "", password: "", role: "TENANT" });
+              setForm({ name: "", email: "", password: "" });
             }}
             className="btn-secondary"
             style={{ background: 'transparent', color: '#667eea', textDecoration: 'underline' }}

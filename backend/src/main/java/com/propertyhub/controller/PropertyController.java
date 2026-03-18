@@ -13,9 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
@@ -43,40 +41,32 @@ public class PropertyController {
         this.leaseRepository = leaseRepository;
     }
 
-    // ✅ Owner's properties (OWNER can only see their own; ADMIN can see any owner's)
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    // ✅ Owner's properties (any user can see their own properties)
     @GetMapping("/owner/{ownerId}")
     public ResponseEntity<List<Property>> byOwner(@PathVariable Long ownerId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
-        if (!isAdmin) {
-            String email = auth.getName();
-            Optional<User> currentUser = userRepository.findByEmail(email);
-            if (currentUser.isEmpty() || !ownerId.equals(currentUser.get().getId())) {
-                return ResponseEntity.status(403).build();
-            }
+        String email = auth.getName();
+        Optional<User> currentUser = userRepository.findByEmail(email);
+        if (currentUser.isEmpty() || !ownerId.equals(currentUser.get().getId())) {
+            return ResponseEntity.status(403).build();
         }
         return ResponseEntity.ok(propertyService.findByOwnerId(ownerId));
     }
 
-    // ✅ Toggle availability (ADMIN can toggle any; OWNER can toggle only their own)
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    // ✅ Toggle availability (property owners can toggle their own properties)
     @PutMapping("/{id}/toggle")
     public ResponseEntity<Property> toggleAvailability(@PathVariable Long id) {
         Optional<Property> opt = propertyService.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
-        if (!isAdmin) {
-            String email = auth.getName();
-            Optional<User> currentUser = userRepository.findByEmail(email);
-            if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
-            User user = currentUser.get();
-            Property property = opt.get();
-            if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
-                return ResponseEntity.status(403).build();
-            }
+        String email = auth.getName();
+        Optional<User> currentUser = userRepository.findByEmail(email);
+        if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
+        User user = currentUser.get();
+        Property property = opt.get();
+        if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
+            return ResponseEntity.status(403).build();
         }
 
         Property p = opt.get();
@@ -111,12 +101,20 @@ public class PropertyController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ✅ Create new property (OWNER or ADMIN only)
+    // ✅ Create new property (any authenticated user can post)
     @PostMapping
     public ResponseEntity<Property> create(@RequestBody Property property, @RequestParam Long ownerId) {
         Optional<User> owner = userRepository.findById(ownerId);
         if (owner.isEmpty()) {
             return ResponseEntity.badRequest().build();
+        }
+
+        // Verify the authenticated user is the one creating the property
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        Optional<User> currentUser = userRepository.findByEmail(email);
+        if (currentUser.isEmpty() || !ownerId.equals(currentUser.get().getId())) {
+            return ResponseEntity.status(403).build();
         }
 
         property.setOwner(owner.get());
@@ -144,8 +142,7 @@ public class PropertyController {
         return ResponseEntity.ok(existing);
     }
 
-    // ✅ Delete property by ID (ADMIN can delete any; OWNER can delete only their own)
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    // ✅ Delete property by ID (property owners can delete their own properties)
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -153,20 +150,13 @@ public class PropertyController {
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(r -> r.equals("ROLE_ADMIN"));
-
-        if (!isAdmin) {
-            // OWNER path: ensure the current user owns this property
-            String email = auth.getName();
-            Optional<User> currentUser = userRepository.findByEmail(email);
-            if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
-            User user = currentUser.get();
-            Property property = opt.get();
-            if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
-                return ResponseEntity.status(403).build();
-            }
+        String email = auth.getName();
+        Optional<User> currentUser = userRepository.findByEmail(email);
+        if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
+        User user = currentUser.get();
+        Property property = opt.get();
+        if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
+            return ResponseEntity.status(403).build();
         }
 
         // Remove dependents first to avoid referential integrity issues
@@ -211,26 +201,20 @@ public class PropertyController {
 
     // ✅ Delete a specific image from a property
     @DeleteMapping("/{id}/images")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
     public ResponseEntity<Void> deleteImage(@PathVariable Long id, @RequestParam String imageUrl) {
         Optional<Property> pOpt = propertyService.findById(id);
         if (pOpt.isEmpty()) return ResponseEntity.notFound().build();
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(r -> r.equals("ROLE_ADMIN"));
-        
-        if (!isAdmin) {
-            String email = auth.getName();
-            Optional<User> currentUser = userRepository.findByEmail(email);
-            if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
-            User user = currentUser.get();
-            Property property = pOpt.get();
-            if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
-                return ResponseEntity.status(403).build();
-            }
+        String email = auth.getName();
+        Optional<User> currentUser = userRepository.findByEmail(email);
+        if (currentUser.isEmpty()) return ResponseEntity.status(403).build();
+        User user = currentUser.get();
+        Property property = pOpt.get();
+        if (property.getOwner() == null || !user.getId().equals(property.getOwner().getId())) {
+            return ResponseEntity.status(403).build();
         }
 
-        Property property = pOpt.get();
         List<String> imageUrls = property.getImageUrls();
         if (imageUrls == null || !imageUrls.contains(imageUrl)) {
             return ResponseEntity.notFound().build();

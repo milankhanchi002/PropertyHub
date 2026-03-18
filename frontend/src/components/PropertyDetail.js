@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getProperty, updateProperty, uploadPropertyImages, deletePropertyImage } from '../api';
 import VisitForm from './VisitForm';
 import LeaseForm from './LeaseForm';
+import ImageSlider from './ImageSlider';
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -161,15 +162,20 @@ export default function PropertyDetail() {
         </Link>
       </div>
 
-      {/* Hero Image (first uploaded image if available) */}
-      <div className="hero-image">
-        <img src={getPropertyImage(property)} alt={property.title} />
-        <div className="overlay" />
-        <div className="hero-text">
-          <div className="badge badge-info" style={{ marginBottom: '0.5rem' }}>{property.city}</div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '800' }}>{property.title}</h1>
-          <div style={{ marginTop: '0.25rem', fontWeight: '800' }}>{formatINR(property.price)}</div>
-        </div>
+      {/* Image Slider */}
+      <ImageSlider images={property?.imageUrls || []} />
+      
+      {/* Property Title and Price Overlay */}
+      <div style={{ 
+        background: 'white', 
+        borderRadius: '1rem', 
+        padding: '2rem', 
+        marginBottom: '2rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div className="badge badge-info" style={{ marginBottom: '0.5rem', display: 'inline-block' }}>{property.city}</div>
+        <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1f2937', marginBottom: '0.5rem' }}>{property.title}</h1>
+        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#667eea' }}>{formatINR(property.price)}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
@@ -201,32 +207,10 @@ export default function PropertyDetail() {
             </p>
           </div>
 
-        {/* Image Gallery */}
-        {Array.isArray(property.imageUrls) && property.imageUrls.length > 1 && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#374151', marginBottom: '1rem' }}>More Photos</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
-              {property.imageUrls.slice(1).map((u, idx) => {
-                const url = u.startsWith('http') ? u : `http://localhost:8080${u}`;
-                return (
-                  <img
-                    key={idx}
-                    src={url}
-                    alt={`Property image ${idx + 2}`}
-                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '0.5rem' }}
-                    loading="lazy"
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-          {/* Action Buttons */
-          }
+          {/* Action Buttons */}
           {user && property.available && (
             (() => {
-              const isOwnerOfThisProperty = user.role === 'OWNER' && property.ownerEmail && user.email === property.ownerEmail;
+              const isOwnerOfThisProperty = property.ownerEmail && user.email === property.ownerEmail;
               if (isOwnerOfThisProperty) {
                 return (
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -247,14 +231,12 @@ export default function PropertyDetail() {
                   >
                     📅 Schedule Visit
                   </button>
-                  {user.role === 'TENANT' && (
-                    <button 
-                      onClick={() => setShowLeaseForm(true)}
-                      className="btn-success"
-                    >
-                      📋 Apply for Lease
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => setShowLeaseForm(true)}
+                    className="btn-success"
+                  >
+                    📋 Apply for Lease
+                  </button>
                 </div>
               );
             })()
@@ -298,6 +280,7 @@ export default function PropertyDetail() {
             </div>
             <LeaseForm 
               propertyId={property.id} 
+              property={property}
               onSuccess={() => setShowLeaseForm(false)}
             />
           </div>

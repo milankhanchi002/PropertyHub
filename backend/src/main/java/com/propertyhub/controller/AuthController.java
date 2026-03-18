@@ -1,6 +1,5 @@
 package com.propertyhub.controller;
 
-import com.propertyhub.model.Role;
 import com.propertyhub.model.User;
 import com.propertyhub.repository.UserRepository;
 import com.propertyhub.security.JwtUtil;
@@ -32,32 +31,21 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "Email already exists"));
         }
 
-        // Use role from form; default to TENANT; do not allow self-register as ADMIN
-//        Role requestedRole = user.getRole();
-//        if (requestedRole == null) {
-//            requestedRole = Role.TENANT;
-//        }
-//        if (requestedRole == Role.ADMIN) {
-//            requestedRole = Role.TENANT;
-//        }
-//        user.setRole(requestedRole);
-
         // Encode password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         // Save user
         User saved = userRepository.save(user);
 
-        // Generate JWT
-        String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
+        // Generate JWT (using "USER" as default role for backward compatibility)
+        String token = jwtUtil.generateToken(saved.getEmail(), "USER");
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("token", token);
         resp.put("user", Map.of(
                 "id", saved.getId(),
                 "name", saved.getName(),
-                "email", saved.getEmail(),
-                "role", saved.getRole()
+                "email", saved.getEmail()
         ));
 
         return ResponseEntity.ok(resp);
@@ -73,15 +61,14 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getEmail(), "USER");
 
         Map<String,Object> resp = new HashMap<>();
         resp.put("token", token);
         resp.put("user", Map.of(
                 "id", user.getId(),
                 "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole()
+                "email", user.getEmail()
         ));
 
         return ResponseEntity.ok(resp);
